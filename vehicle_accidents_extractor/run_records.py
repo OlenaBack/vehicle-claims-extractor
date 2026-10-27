@@ -14,6 +14,7 @@ class RunMetadata(BaseModel):
 
     run_id: str
     started_at: datetime
+    dataset: str = "batch-01"  # Compatibility default for the two original baseline runs.
 
     model_profile: str
     model: str

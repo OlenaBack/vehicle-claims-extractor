@@ -36,14 +36,16 @@ def parse_args() -> argparse.Namespace:
 
 
 def resolve_api_key(model_config: ModelConfig) -> str | None:
-    load_dotenv(ROOT / ".env")
     if model_config.api_key_env is None:
         return "ollama"
     return os.getenv(model_config.api_key_env, "").strip() or None
 
 
 def build_run_metadata(
-    args: argparse.Namespace,
+    *,
+    model_profile: str,
+    sampling_profile: str,
+    dataset: str,
     config: Config,
     model_config: ModelConfig,
     sampling: Sampling,
@@ -52,13 +54,14 @@ def build_run_metadata(
     return RunMetadata(
         run_id=uuid4().hex,
         started_at=datetime.now(timezone.utc),
-        model_profile=args.model,
+        dataset=dataset,
+        model_profile=model_profile,
         model=model_config.model,
         base_url=model_config.base_url,
         prompt_version=prompts.version,
         system_hash=prompts.system_hash,
         repair_hash=prompts.repair_hash,
-        sampling_profile=args.sampling,
+        sampling_profile=sampling_profile,
         temperature=sampling.temperature,
         top_p=sampling.top_p,
         timeout_seconds=config.timeout_seconds,
@@ -69,6 +72,7 @@ def build_run_metadata(
 
 
 def run(args: argparse.Namespace) -> None:
+    load_dotenv(ROOT / ".env")
     config = load_config()
     model_config = config.get_model(args.model)
     sampling = config.get_sampling(args.sampling)
@@ -81,9 +85,17 @@ def run(args: argparse.Namespace) -> None:
     dataset_directory = ROOT / "data" / "batches" / args.dataset
     documents = sorted((dataset_directory / "texts").glob("*.txt"))
     if not documents:
-        raise ValueError("No accident text documents found")
+        raise ValueError(f"No accident text documents found in {dataset_directory / 'texts'}")
 
-    run_metadata = build_run_metadata(args, config, model_config, sampling, prompts)
+    run_metadata = build_run_metadata(
+        model_profile=args.model,
+        sampling_profile=args.sampling,
+        dataset=args.dataset,
+        config=config,
+        model_config=model_config,
+        sampling=sampling,
+        prompts=prompts,
+    )
 
     with LLMClient(
         base_url=model_config.base_url,
@@ -106,7 +118,7 @@ def run(args: argparse.Namespace) -> None:
         )
         model_name = model_config.model.replace("/", "-")
         filename = f"{args.model}__{model_name}__{args.prompt}__{args.sampling}__{run_metadata.run_id}.jsonl"
-        output_path = ROOT / "results" / filename
+        output_path = ROOT / "results" / run_metadata.dataset / filename
         with ExtractionResultWriter(output_path, run_metadata) as writer:
             processed = AccidentBatchProcessor(extractor, writer).run(documents)
 
