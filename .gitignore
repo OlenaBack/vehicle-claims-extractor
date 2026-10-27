@@ -1,0 +1,34 @@
+# Secrets
+.env
+.env.*
+!.env.example
+
+# Virtual environments
+.venv/
+venv/
+
+# Python caches
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+
+# Raw source downloads
+data/raw/
+
+# Editor
+.vscode/
+
+# Local agent tooling and credentials
+.agents/
+.codex/
+.aws/
+.scratch/
+
+# Temporary files and source archives
+*.tmp
+*.log
+*.zip
+.DS_Store
+Thumbs.db
