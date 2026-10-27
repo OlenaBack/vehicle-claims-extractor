@@ -6,9 +6,9 @@ Record whole-document latency; transport retries belong to LLMClient.
 
 import time
 from dataclasses import dataclass
-from typing import Literal
 
 from ..llm.config import Sampling
+from ..extraction_status import ExtractionStatus
 from ..llm.llm_client import LLMClient, LLMResult
 from .prompt_builder import PromptBuilder
 from .response_validator import ResponseValidator, UnrepairableResponse
@@ -17,7 +17,7 @@ from ..schema import VehicleAccident
 
 @dataclass(frozen=True)
 class AccidentExtractionResult:
-    status: Literal["valid", "repaired", "failed"]
+    status: ExtractionStatus
     accident: VehicleAccident | None
     calls: tuple[LLMResult, ...]
     validation_errors: tuple[str, ...]
@@ -48,7 +48,7 @@ class AccidentExtractor:
             "json_schema": {
                 "name": "vehicle_accident",
                 "strict": True,
-                "schema": VehicleAccident.model_json_schema(),
+                "schema": validator.schema.model_json_schema(),
             },
         }
 

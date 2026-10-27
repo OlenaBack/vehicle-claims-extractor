@@ -17,6 +17,7 @@ from vehicle_accidents_extractor.extraction.prompt_builder import PromptBuilder
 from vehicle_accidents_extractor.extraction.prompt_loader import load_extraction_prompts
 from vehicle_accidents_extractor.extraction.response_validator import ResponseValidator
 from vehicle_accidents_extractor.schema import VehicleAccident
+from vehicle_accidents_extractor.run_records import RunMetadata
 
 
 ROOT = Path(__file__).resolve().parent
@@ -50,23 +51,23 @@ def run(args: argparse.Namespace) -> None:
         raise ValueError("No accident text documents found")
 
     run_id = uuid4().hex
-    run_metadata = {
-        "run_id": run_id,
-        "started_at": datetime.now(timezone.utc).isoformat(),
-        "model_profile": args.model,
-        "model": model_config.model,
-        "base_url": model_config.base_url,
-        "prompt_version": prompts.version,
-        "system_hash": prompts.system_hash,
-        "repair_hash": prompts.repair_hash,
-        "sampling_profile": args.sampling,
-        "temperature": sampling.temperature,
-        "top_p": sampling.top_p,
-        "timeout_seconds": config.timeout_seconds,
-        "max_retries": config.max_retries,
-        "max_tokens": config.max_tokens,
-        "price_per_1m": model_config.price_per_1m,
-    }
+    run_metadata = RunMetadata(
+        run_id=run_id,
+        started_at=datetime.now(timezone.utc),
+        model_profile=args.model,
+        model=model_config.model,
+        base_url=model_config.base_url,
+        prompt_version=prompts.version,
+        system_hash=prompts.system_hash,
+        repair_hash=prompts.repair_hash,
+        sampling_profile=args.sampling,
+        temperature=sampling.temperature,
+        top_p=sampling.top_p,
+        timeout_seconds=config.timeout_seconds,
+        max_retries=config.max_retries,
+        max_tokens=config.max_tokens,
+        price_per_1m=model_config.price_per_1m,
+    )
 
     with LLMClient(
         base_url=model_config.base_url,

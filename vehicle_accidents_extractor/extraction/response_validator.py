@@ -21,6 +21,11 @@ class ResponseValidator(Generic[ModelT]):
     def __init__(self, schema: type[ModelT]):
         self._schema = schema
 
+    @property
+    def schema(self) -> type[ModelT]:
+        """The model used for both the requested JSON shape and validation."""
+        return self._schema
+
     def validate(self, result: LLMResult) -> ModelT:
         """Return validated data.
 

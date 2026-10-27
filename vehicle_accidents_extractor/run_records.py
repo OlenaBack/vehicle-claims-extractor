@@ -1,11 +1,11 @@
 """Define the persisted format shared by result writing and evaluation."""
 
 from datetime import datetime
-from typing import Literal
 
 from pydantic import BaseModel, ConfigDict
 
 from .llm.llm_client import LLMResult
+from .extraction_status import ExtractionStatus
 from .schema import VehicleAccident
 
 
@@ -39,7 +39,7 @@ class DocumentRunRecord(BaseModel):
     run: RunMetadata
     document_id: str
 
-    status: Literal["valid", "repaired", "failed"]
+    status: ExtractionStatus
     accident: VehicleAccident | None
 
     calls: tuple[LLMResult, ...]

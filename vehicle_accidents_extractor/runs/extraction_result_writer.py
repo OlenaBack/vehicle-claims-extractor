@@ -9,9 +9,9 @@ from ..run_records import DocumentRunRecord, RunMetadata
 
 
 class ExtractionResultWriter:
-    def __init__(self, path: Path, run_metadata: RunMetadata | dict):
+    def __init__(self, path: Path, run_metadata: RunMetadata):
         self._path = path
-        self._run_metadata = RunMetadata.model_validate(run_metadata)
+        self._run_metadata = run_metadata
         self._file: TextIO | None = None
 
     def __enter__(self) -> "ExtractionResultWriter":
