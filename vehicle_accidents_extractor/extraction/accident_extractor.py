@@ -8,11 +8,11 @@ import time
 from dataclasses import dataclass
 from typing import Literal
 
-from .config import Sampling
-from .llm_client import LLMClient, LLMResult
+from ..llm.config import Sampling
+from ..llm.llm_client import LLMClient, LLMResult
 from .prompt_builder import PromptBuilder
-from .response_validator import ResponseValidator
-from .schema import VehicleAccident
+from .response_validator import ResponseValidator, UnrepairableResponse
+from ..schema import VehicleAccident
 
 
 @dataclass(frozen=True)
@@ -68,15 +68,14 @@ class AccidentExtractor:
                 response_format=self._response_format,
             )
             calls.append(llm_result)
-            reason = self._validator.unrepairable_reason(llm_result)
-            if reason is not None:
-                return AccidentExtractionResult(
-                    "failed", None, tuple(calls), tuple(validation_errors),
-                    time.perf_counter() - start, reason,
-                )
 
             try:
                 accident = self._validator.validate(llm_result)
+            except UnrepairableResponse as unrepairable:
+                return AccidentExtractionResult(
+                    "failed", None, tuple(calls), tuple(validation_errors),
+                    time.perf_counter() - start, str(unrepairable),
+                )
             except ValueError as validation_error:
                 error = str(validation_error)
             else:

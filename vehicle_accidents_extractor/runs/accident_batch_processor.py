@@ -3,7 +3,7 @@
 from collections.abc import Iterable
 from pathlib import Path
 
-from .accident_extractor import AccidentExtractor
+from ..extraction.accident_extractor import AccidentExtractor
 from .extraction_result_writer import ExtractionResultWriter
 
 

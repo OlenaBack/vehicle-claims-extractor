@@ -7,7 +7,7 @@ from typing import Annotated
 from pydantic import BaseModel, ConfigDict, Field, HttpUrl, field_validator
 
 
-DEFAULT_CONFIG_PATH = Path(__file__).resolve().parent.parent / "config.toml"
+DEFAULT_CONFIG_PATH = Path(__file__).resolve().parent / "config.toml"
 Price = Annotated[float, Field(ge=0, allow_inf_nan=False)]
 
 
@@ -67,7 +67,7 @@ class Config(BaseModel):
 def load_config(path: Path = DEFAULT_CONFIG_PATH) -> Config:
     """Read TOML and validate it without loading or requiring credentials.
 
-    The default path is relative to the project; explicit paths are relative
+    The default file sits beside this module; explicit paths are relative
     to the caller's working directory. File, TOML and validation errors propagate.
     """
     return Config.model_validate(tomllib.loads(path.read_text(encoding="utf-8")))

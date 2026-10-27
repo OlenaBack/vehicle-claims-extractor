@@ -26,6 +26,6 @@ class PromptBuilder:
             {"role": "assistant", "content": content},
             {
                 "role": "user",
-                "content": self._repair_prompt.format(error=error),
+                "content": self._repair_prompt.replace("{error}", error),
             },
         ]

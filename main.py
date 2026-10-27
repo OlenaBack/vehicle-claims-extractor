@@ -8,14 +8,14 @@ from uuid import uuid4
 
 from dotenv import load_dotenv
 
-from vehicle_accidents_extractor.accident_batch_processor import AccidentBatchProcessor
-from vehicle_accidents_extractor.accident_extractor import AccidentExtractor
-from vehicle_accidents_extractor.config import load_config
-from vehicle_accidents_extractor.extraction_result_writer import ExtractionResultWriter
-from vehicle_accidents_extractor.llm_client import LLMClient
-from vehicle_accidents_extractor.prompt_builder import PromptBuilder
-from vehicle_accidents_extractor.prompt_loader import load_extraction_prompts
-from vehicle_accidents_extractor.response_validator import ResponseValidator
+from vehicle_accidents_extractor.runs.accident_batch_processor import AccidentBatchProcessor
+from vehicle_accidents_extractor.extraction.accident_extractor import AccidentExtractor
+from vehicle_accidents_extractor.llm.config import load_config
+from vehicle_accidents_extractor.runs.extraction_result_writer import ExtractionResultWriter
+from vehicle_accidents_extractor.llm.llm_client import LLMClient
+from vehicle_accidents_extractor.extraction.prompt_builder import PromptBuilder
+from vehicle_accidents_extractor.extraction.prompt_loader import load_extraction_prompts
+from vehicle_accidents_extractor.extraction.response_validator import ResponseValidator
 from vehicle_accidents_extractor.schema import VehicleAccident
 
 
@@ -31,7 +31,7 @@ def parse_args() -> argparse.Namespace:
 
 
 def run(args: argparse.Namespace) -> None:
-    config = load_config(ROOT / "config.toml")
+    config = load_config()
     model_config = config.get_model(args.model)
     sampling = config.get_sampling(args.sampling)
 
@@ -87,7 +87,9 @@ def run(args: argparse.Namespace) -> None:
             sampling,
             config.max_tokens,
         )
-        output_path = ROOT / "results" / f"{run_id}.jsonl"
+        model_name = model_config.model.replace("/", "-")
+        filename = f"{args.model}__{model_name}__{args.prompt}__{args.sampling}__{run_id}.jsonl"
+        output_path = ROOT / "results" / filename
         with ExtractionResultWriter(output_path, run_metadata) as writer:
             processed = AccidentBatchProcessor(extractor, writer).run(documents)
 
