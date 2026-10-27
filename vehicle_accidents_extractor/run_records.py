@@ -4,8 +4,8 @@ from datetime import datetime
 
 from pydantic import BaseModel, ConfigDict
 
-from .llm.llm_client import LLMResult
 from .extraction_status import ExtractionStatus
+from .llm.llm_client import LLMResult
 from .schema import VehicleAccident
 
 
@@ -30,7 +30,7 @@ class RunMetadata(BaseModel):
     timeout_seconds: int
     max_retries: int
     max_tokens: int
-    price_per_1m: tuple[float, float]
+    price_per_1m: tuple[float, float]  # USD per 1M tokens: (input, output)
 
 
 class DocumentRunRecord(BaseModel):

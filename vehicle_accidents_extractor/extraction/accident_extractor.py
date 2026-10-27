@@ -1,18 +1,18 @@
 """Turn one accident description into a validated VehicleAccident.
 
 Coordinate the client, prompt builder and validator, allowing one repair.
-Record whole-document latency; transport retries belong to LLMClient.
+Record whole-document latency and each call's outcome.
 """
 
 import time
 from dataclasses import dataclass
 
-from ..llm.config import Sampling
 from ..extraction_status import ExtractionStatus
+from ..llm.config import Sampling
 from ..llm.llm_client import LLMClient, LLMResult
+from ..schema import VehicleAccident
 from .prompt_builder import PromptBuilder
 from .response_validator import ResponseValidator, UnrepairableResponse
-from ..schema import VehicleAccident
 
 
 @dataclass(frozen=True)

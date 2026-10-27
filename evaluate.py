@@ -18,10 +18,10 @@ ROOT = Path(__file__).resolve().parent
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--results", type=Path, required=True)
+    parser.add_argument("--dataset", default="batch-01")
     parser.add_argument(
         "--golden",
         type=Path,
-        default=ROOT / "data/batches/batch-01/golden.jsonl",
     )
     return parser.parse_args()
 
@@ -31,9 +31,10 @@ def main() -> None:
 
     try:
         records = read_run_records(args.results)
+        golden_path = args.golden or ROOT / "data" / "batches" / args.dataset / "golden.jsonl"
         golden = [
             GoldenRecord.model_validate_json(line)
-            for line in args.golden.read_text(encoding="utf-8").splitlines()
+            for line in golden_path.read_text(encoding="utf-8").splitlines()
             if line.strip()
         ]
         metrics = calculate_run_metrics(records, golden)

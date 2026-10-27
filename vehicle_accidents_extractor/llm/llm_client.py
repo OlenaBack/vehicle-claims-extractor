@@ -7,7 +7,14 @@ so one class works for both; only the address, key and model name differ.
 import time
 from dataclasses import dataclass
 
-from openai import APIConnectionError, APITimeoutError, InternalServerError, OpenAI, OpenAIError, RateLimitError
+from openai import (
+    APIConnectionError,
+    APITimeoutError,
+    InternalServerError,
+    OpenAI,
+    OpenAIError,
+    RateLimitError,
+)
 
 # Temporary problems that may succeed on a second try:
 # timeout, lost connection, too many requests, server error (5xx).
@@ -86,12 +93,12 @@ class LLMClient:
     def ping(self, timeout_seconds: float = 10) -> str | None:
         """Quick "are you there?" check before a long run.
 
-        Returns None if the server answers, otherwise the error name.
+        Returns None if the server answers, otherwise the error name and message.
         """
         try:
             self._openai.with_options(timeout=timeout_seconds).models.list()
         except OpenAIError as error:
-            return type(error).__name__
+            return f"{type(error).__name__}: {error}"
         return None
 
     def call(
