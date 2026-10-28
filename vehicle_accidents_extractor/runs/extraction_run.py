@@ -9,12 +9,12 @@ from ..extraction.accident_extractor import AccidentExtractor
 from ..extraction.prompt_builder import PromptBuilder
 from ..extraction.prompt_loader import load_extraction_prompts
 from ..extraction.response_validator import ResponseValidator
-from ..extraction_run_records import ExtractionRunMetadata
+from ..accident_extraction_record import ExtractionRunMetadata
 from ..input_paths import InputPaths
 from ..llm.config import Config
 from ..llm.llm_client import LLMClient
 from ..schema import VehicleAccident
-from .extraction_record_writer import ExtractionRecordWriter
+from .accident_extraction_record_writer import ExtractionRecordWriter
 
 
 class ExtractionRun:

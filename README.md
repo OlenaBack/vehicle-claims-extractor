@@ -35,61 +35,64 @@ The schema remains at package level. [`main.py`](main.py) connects the component
 
 ## Extraction and evaluation flow
 
+### Build an extraction run
+
 ```mermaid
 flowchart TD
-    subgraph RunSetup[Set up extraction run]
-        ConfigFile[Config file] -->|loaded and validated as| Config[Config]
-        Config -->|settings| Main[main entry point]
-        Main -->|config and selections| RunBuilder[ExtractionRunBuilder]
-        Main -->|creates and passes| Inputs[InputPaths]
-        Main -->|passes output path resolver| RunBuilder
-        RunBuilder -->|requests description paths| Inputs
-        Inputs -->|returns description paths| RunBuilder
-        Inputs -->|provides prompt directory| RunBuilder
-        RunBuilder -->|uses run metadata| ArtifactPaths[ArtifactPaths]
-        ArtifactPaths -->|returns extraction run records path| RunBuilder
-        RunBuilder -->|loads selected version| PromptLoader[Prompt loader]
-        PromptFiles[Prompt files] -->|read by| PromptLoader
-        PromptLoader -->|returns| Prompts[ExtractionPrompts]
-        Prompts -->|system and repair text| PromptBuilder[PromptBuilder]
-        RunBuilder -->|builds| Run[ExtractionRun]
-        RunBuilder -->|creates| Validator[ResponseValidator]
-        RunBuilder -->|creates| Client[LLMClient]
-        RunBuilder -->|creates| Extractor[AccidentExtractor]
-    end
+    Main[main entry point] -->|loads| ConfigFile[Config file]
+    ConfigFile -->|validated as| Config[Config]
+    Main -->|passes config and choices| Builder[ExtractionRunBuilder]
+    Main -->|creates and passes| Inputs[InputPaths]
+    Main -->|passes output path resolver| Builder
+    Builder -->|requests description paths| Inputs
+    Inputs -->|returns description paths and prompt directory| Builder
+    Builder -->|loads selected version with| PromptLoader[Prompt loader]
+    PromptFiles[Prompt files] -->|read by| PromptLoader
+    PromptLoader -->|returns| Prompts[ExtractionPrompts]
+    Prompts -->|system and repair text| PromptBuilder[PromptBuilder]
+    Builder -->|creates| PromptBuilder
+    Builder -->|uses run metadata| ArtifactPaths[ArtifactPaths]
+    ArtifactPaths -->|returns extraction run records path| Builder
+    Builder -->|builds| Run[ExtractionRun]
+    Builder -->|creates| Client[LLMClient]
+    Builder -->|creates| Extractor[AccidentExtractor]
+    Builder -->|creates| Validator[ResponseValidator]
+```
 
-    subgraph BatchExtraction[Extract the accident batch]
-        Main -->|checks connection| Run
-        Main -->|executes| Run
-        Run -->|checks connection| Client
-        Run -->|reads each description and passes text| Extractor
-        Extractor -->|builds messages| PromptBuilder
-        PromptBuilder -->|messages| Extractor
-        Extractor -->|sends request| Client
-        Client -->|returns response and attempts| LLMResult[LLMResult]
-        LLMResult -->|returns to| Extractor
-        Extractor -->|passes response to| Validator
-        Validator -->|returns validated accident| Accident[VehicleAccident]
-        Accident -->|validated data| Extractor
-        Validator -->|returns validation error| Extractor
-        Extractor -->|returns| Outcome[AccidentExtractionOutcome]
-        Outcome -->|accident ID and outcome| Run
-        Run -->|writes| Writer[ExtractionRecordWriter]
-        Run -->|run metadata| Writer
-        Run -->|extraction run records path| Writer
-        Writer -->|serializes| Record[AccidentExtractionRecord]
-        Record -->|JSONL line| JSONL[Saved extraction run]
-    end
+### Process the accident batch
 
-    subgraph RunEvaluation[Evaluate extraction run]
-        JSONL -->|read| Reader[Accident extraction record reader]
-        Evaluate[evaluate entry point] -->|requests golden labels path| Inputs
-        Inputs -->|returns golden labels path| Evaluate
-        Evaluate -->|reads| GoldenFile[Golden labels file]
-        GoldenFile -->|validated as| Golden[GoldenRecord entries]
-        Reader -->|extraction records| Metrics[Run metrics]
-        Golden -->|golden records| Metrics
-        Evaluate -->|scores the run| Metrics
-        Metrics --> Scores[Accuracy validity latency cost]
-    end
+```mermaid
+flowchart TD
+    Main[main entry point] -->|checks connection and executes| Run[ExtractionRun]
+    Run -->|checks connection| Client[LLMClient]
+    Run -->|reads each description and passes text| Extractor[AccidentExtractor]
+    Extractor -->|requests initial or repair messages| PromptBuilder[PromptBuilder]
+    PromptBuilder -->|messages| Extractor
+    Extractor -->|sends chat request| Client
+    Client -->|returns response and attempts| LLMResult[LLMResult]
+    LLMResult -->|response| Extractor
+    Extractor -->|passes response to| Validator[ResponseValidator]
+    Validator -->|returns validated accident| Accident[VehicleAccident]
+    Accident -->|validated data| Extractor
+    Validator -->|returns validation error| Extractor
+    Extractor -->|returns| Outcome[AccidentExtractionOutcome]
+    Outcome -->|accident ID and outcome| Run
+    Run -->|writes with run metadata and records path| Writer[ExtractionRecordWriter]
+    Writer -->|serializes| Record[AccidentExtractionRecord]
+    Record -->|JSONL line| JSONL[Saved extraction run]
+```
+
+### Evaluate a saved extraction run
+
+```mermaid
+flowchart TD
+    Evaluate[evaluate entry point] -->|passes extraction run path| Reader[Accident extraction record reader]
+    JSONL[Saved extraction run] -->|read as| Reader
+    Reader -->|extraction records| Evaluate
+    Evaluate -->|requests golden labels path| Inputs[InputPaths]
+    Inputs -->|returns golden labels path| Evaluate
+    Evaluate -->|reads| GoldenFile[Golden labels file]
+    GoldenFile -->|validated as| Golden[GoldenRecord entries]
+    Evaluate -->|passes records and labels| Metrics[Run metrics]
+    Metrics --> Scores[Accuracy validity latency cost]
 ```

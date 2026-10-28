@@ -28,6 +28,6 @@ _Avoid_: expected output, answer key
 One pass over a batch using one model, one prompt version, and one sampling configuration.
 _Avoid_: job, batch run
 
-**Extraction record**:
-The outcome for one accident description in one extraction run, including its extracted facts or failure.
+**Accident extraction record**:
+The saved outcome for one accident description in one extraction run, including its extracted facts or failure.
 _Avoid_: result (when referring to an individual extraction outcome)

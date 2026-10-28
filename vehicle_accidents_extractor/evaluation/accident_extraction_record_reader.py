@@ -4,7 +4,7 @@ from pathlib import Path
 
 from pydantic import ValidationError
 
-from ..extraction_run_records import AccidentExtractionRecord
+from ..accident_extraction_record import AccidentExtractionRecord
 
 
 def read_accident_extraction_records(path: Path) -> list[AccidentExtractionRecord]:

@@ -5,7 +5,7 @@ from pathlib import Path
 from typing import TextIO
 
 from ..extraction.accident_extractor import AccidentExtractionOutcome
-from ..extraction_run_records import AccidentExtractionRecord, ExtractionRunMetadata
+from ..accident_extraction_record import AccidentExtractionRecord, ExtractionRunMetadata
 
 
 class ExtractionRecordWriter:

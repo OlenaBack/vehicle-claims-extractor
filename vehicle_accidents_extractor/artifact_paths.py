@@ -2,7 +2,7 @@
 
 from pathlib import Path
 
-from .extraction_run_records import ExtractionRunMetadata
+from .accident_extraction_record import ExtractionRunMetadata
 
 
 class ArtifactPaths:

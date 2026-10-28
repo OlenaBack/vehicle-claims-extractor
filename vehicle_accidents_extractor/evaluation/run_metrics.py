@@ -2,7 +2,7 @@
 
 from dataclasses import dataclass
 
-from ..extraction_run_records import AccidentExtractionRecord
+from ..accident_extraction_record import AccidentExtractionRecord
 from ..schema import GoldenRecord
 from .accident_extraction_scorer import score_accident
 
