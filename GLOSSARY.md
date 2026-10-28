@@ -6,6 +6,7 @@ This project extracts structured accident facts from accident narratives and eva
 
 **Accident narrative**:
 A narrative account of one vehicle accident that serves as extraction input.
+_Avoid_: document, raw claim
 
 **Accident ID**:
 An identifier for the accident represented by a narrative in a batch.
