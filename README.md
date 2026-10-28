@@ -2,7 +2,49 @@
 
 Extract structured data from vehicle accident narratives and compare a provider LLM with a local model on accuracy, validity, latency and cost.
 
-The project requirements are in [REQUIREMENTS.md](REQUIREMENTS.md).
+The project requirements are in [REQUIREMENTS.md](REQUIREMENTS.md). The measured comparison and production recommendation are in [REPORT.md](REPORT.md).
+
+## Setup
+
+Requires Python 3.11 or newer.
+
+```powershell
+python -m venv .venv
+.venv\Scripts\Activate.ps1
+pip install -r requirements.txt
+copy .env.example .env
+```
+
+Put your OpenRouter key in `.env` as `OPENROUTER_API_KEY`. `.env` is not committed. Without a key, the provider run is skipped with a message.
+
+### Local model (Ollama)
+
+1. Install Ollama from <https://ollama.com/download>.
+2. Start the server. The Windows app starts it automatically; otherwise run `ollama serve`. It listens on `http://localhost:11434`.
+3. Pull the model named in [`config.toml`](vehicle_accidents_extractor/llm/config.toml) (about 2 GB):
+
+   ```powershell
+   ollama pull llama3.2:3b
+   ```
+
+If Ollama is not reachable, the local run is skipped with a message. Before a local run, one small unrecorded request loads the model, so model loading time is not part of the measured latency.
+
+## Run
+
+```powershell
+python main.py                                          # openrouter, prompt v1, deterministic, batch-01
+python main.py --model ollama --prompt v2 --sampling varied
+```
+
+Options: `--model` (`openrouter` or `ollama`), `--prompt` (a folder under `prompts/`), `--sampling` (`deterministic` or `varied`) and `--batch`. Each run writes one JSONL file to `extractions/<batch>/`. The full comparison is 2 models × 2 prompts × 2 sampling profiles = 8 runs.
+
+Evaluate one saved run against the golden labels:
+
+```powershell
+python evaluate.py --extraction-run extractions\batch-01\<run file>.jsonl
+```
+
+Settings (models, prices, timeout, retries, sampling) are in [`config.toml`](vehicle_accidents_extractor/llm/config.toml). Prompt versions and their changelog are in [`prompts/`](prompts/).
 
 ## Data
 
@@ -41,7 +83,8 @@ The schema remains at package level. [`main.py`](main.py) connects the component
 flowchart TD
     Main[main entry point] -->|loads| ConfigFile[Config file]
     ConfigFile -->|validated as| Config[Config]
-    Main -->|passes config and choices| Builder[AccidentBatchExtractorBuilder]
+    Main -->|creates, pings and warms up local model| Client[LLMClient]
+    Main -->|passes config, choices and client| Builder[AccidentBatchExtractorBuilder]
     Main -->|creates and passes| Inputs[InputPaths]
     Main -->|passes output path resolver| Builder
     Builder -->|requests batch input paths| Inputs
@@ -54,8 +97,7 @@ flowchart TD
     Builder -->|uses run metadata| ArtifactPaths[ArtifactPaths]
     ArtifactPaths -->|returns extraction run records path| Builder
     Builder -->|builds| BatchExtractor[AccidentBatchExtractor]
-    Builder -->|creates| Client[LLMClient]
-    Builder -->|creates| AccidentExtractor[AccidentExtractor]
+    Builder -->|creates with client| AccidentExtractor[AccidentExtractor]
     Builder -->|creates| Validator[ResponseValidator]
 ```
 
@@ -63,7 +105,7 @@ flowchart TD
 
 ```mermaid
 flowchart TD
-    Main[main entry point] -->|pings, then extracts the batch| BatchExtractor[AccidentBatchExtractor]
+    Main[main entry point] -->|extracts the batch| BatchExtractor[AccidentBatchExtractor]
     BatchExtractor -->|reads each narrative and uses| AccidentExtractor[AccidentExtractor]
     AccidentExtractor -->|returns outcome| BatchExtractor
     BatchExtractor -->|sends accident ID and outcome| Writer[AccidentExtractionRecordWriter]
