@@ -101,6 +101,22 @@ class LLMClient:
             return f"{type(error).__name__}: {error}"
         return None
 
+    def warm_up(self) -> str | None:
+        """Send one tiny unrecorded request so a local server loads the model into memory.
+
+        Its latency and tokens are not part of any extraction record.
+        Returns None on success, otherwise the error name and message.
+        """
+        try:
+            self._openai_client.chat.completions.create(
+                model=self.model,
+                messages=[{"role": "user", "content": "Reply with: ok"}],
+                max_tokens=1,
+            )
+        except OpenAIError as error:
+            return f"{type(error).__name__}: {error}"
+        return None
+
     def call(
         self,
         *,

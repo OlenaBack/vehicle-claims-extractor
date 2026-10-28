@@ -9,6 +9,7 @@ from dotenv import load_dotenv
 from vehicle_accidents_extractor.artifact_paths import ArtifactPaths
 from vehicle_accidents_extractor.input_paths import InputPaths
 from vehicle_accidents_extractor.llm.config import ModelConfig, load_config
+from vehicle_accidents_extractor.llm.llm_client import LLMClient
 from vehicle_accidents_extractor.batch.accident_batch_extractor import (
     AccidentBatchExtractorBuilder,
 )
@@ -27,7 +28,7 @@ def parse_args() -> argparse.Namespace:
 
 
 def resolve_api_key(model_config: ModelConfig) -> str | None:
-    if model_config.api_key_env is None:
+    if model_config.is_local:
         return "ollama"
     return os.getenv(model_config.api_key_env, "").strip() or None
 
@@ -41,19 +42,31 @@ def run(args: argparse.Namespace) -> None:
         print(f"Skipping {args.model}: missing {model_config.api_key_env}")
         return
 
-    with (
-        AccidentBatchExtractorBuilder(config, InputPaths(ROOT))
-        .for_accident_batch(args.batch)
-        .with_model_profile(args.model, api_key)
-        .with_prompt_version(args.prompt)
-        .with_sampling_profile(args.sampling)
-        .saving_records_to(ArtifactPaths(ROOT))
-        .build()
-    ) as batch_extractor:
-        if connection_error := batch_extractor.ping():
+    with LLMClient(
+        base_url=model_config.base_url,
+        api_key=api_key,
+        model=model_config.model,
+        timeout_seconds=config.timeout_seconds,
+        max_retries=config.max_retries,
+    ) as llm_client:
+        if connection_error := llm_client.ping():
             print(f"Skipping {args.model}: {connection_error}")
             return
 
+        if model_config.is_local and (warm_up_error := llm_client.warm_up()):
+            print(f"Skipping {args.model}: warm-up failed: {warm_up_error}")
+            return
+
+        batch_extractor = (
+            AccidentBatchExtractorBuilder(config, InputPaths(ROOT))
+            .for_accident_batch(args.batch)
+            .with_model_profile(args.model)
+            .with_llm_client(llm_client)
+            .with_prompt_version(args.prompt)
+            .with_sampling_profile(args.sampling)
+            .saving_records_to(ArtifactPaths(ROOT))
+            .build()
+        )
         processed_count = batch_extractor.extract()
 
     print(

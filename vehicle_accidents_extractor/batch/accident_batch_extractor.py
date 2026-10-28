@@ -20,26 +20,15 @@ from .accident_extraction_record_writer import AccidentExtractionRecordWriter
 class AccidentBatchExtractor:
     def __init__(
         self,
-        llm_client: LLMClient,
         accident_extractor: AccidentExtractor,
         narrative_paths: list[Path],
         run_metadata: ExtractionRunMetadata,
         extraction_run_records_path: Path,
     ):
-        self._llm_client = llm_client
         self._accident_extractor = accident_extractor
         self._narrative_paths = narrative_paths
         self.run_metadata = run_metadata
         self.extraction_run_records_path = extraction_run_records_path
-
-    def __enter__(self) -> "AccidentBatchExtractor":
-        return self
-
-    def __exit__(self, *exc_info) -> None:
-        self._llm_client.close()
-
-    def ping(self) -> str | None:
-        return self._llm_client.ping()
 
     def extract(self) -> int:
         with AccidentExtractionRecordWriter(
@@ -61,7 +50,7 @@ class AccidentBatchExtractorBuilder:
         self._artifact_paths: ArtifactPaths | None = None
         self._accident_batch: str | None = None
         self._model_profile: str | None = None
-        self._api_key: str | None = None
+        self._llm_client: LLMClient | None = None
         self._prompt_version: str | None = None
         self._sampling_profile: str | None = None
 
@@ -69,9 +58,13 @@ class AccidentBatchExtractorBuilder:
         self._accident_batch = accident_batch
         return self
 
-    def with_model_profile(self, model_profile: str, api_key: str) -> "AccidentBatchExtractorBuilder":
+    def with_model_profile(self, model_profile: str) -> "AccidentBatchExtractorBuilder":
         self._model_profile = model_profile
-        self._api_key = api_key
+        return self
+
+    def with_llm_client(self, llm_client: LLMClient) -> "AccidentBatchExtractorBuilder":
+        """Use a client the caller created for the model profile and will close."""
+        self._llm_client = llm_client
         return self
 
     def with_prompt_version(self, prompt_version: str) -> "AccidentBatchExtractorBuilder":
@@ -89,11 +82,12 @@ class AccidentBatchExtractorBuilder:
     def build(self) -> AccidentBatchExtractor:
         accident_batch = self._required(self._accident_batch, "accident batch")
         model_profile = self._required(self._model_profile, "model profile")
-        api_key = self._required(self._api_key, "API key")
         prompt_version = self._required(self._prompt_version, "prompt version")
         sampling_profile = self._required(self._sampling_profile, "sampling profile")
         if self._artifact_paths is None:
             raise ValueError("Artifact paths are required to build an accident batch extractor")
+        if self._llm_client is None:
+            raise ValueError("An LLM client is required to build an accident batch extractor")
 
         model_config = self._config.get_model(model_profile)
         sampling = self._config.get_sampling(sampling_profile)
@@ -118,22 +112,14 @@ class AccidentBatchExtractorBuilder:
             price_per_1m=model_config.price_per_1m,
         )
         extraction_run_records_path = self._artifact_paths.extraction_run_records_path(run_metadata)
-        llm_client = LLMClient(
-            base_url=model_config.base_url,
-            api_key=api_key,
-            model=model_config.model,
-            timeout_seconds=self._config.timeout_seconds,
-            max_retries=self._config.max_retries,
-        )
         accident_extractor = AccidentExtractor(
-            llm_client,
+            self._llm_client,
             PromptBuilder(prompts.system_prompt, prompts.repair_prompt),
             ResponseValidator(VehicleAccident),
             sampling,
             self._config.max_tokens,
         )
         return AccidentBatchExtractor(
-            llm_client,
             accident_extractor,
             narrative_paths,
             run_metadata,

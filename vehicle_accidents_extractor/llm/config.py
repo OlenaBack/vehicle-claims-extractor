@@ -19,6 +19,11 @@ class ModelConfig(BaseModel):
     model: str = Field(min_length=1)
     price_per_1m: tuple[Price, Price]
 
+    @property
+    def is_local(self) -> bool:
+        """A local model needs no API key."""
+        return self.api_key_env is None
+
     @field_validator("base_url")
     @classmethod
     def validate_base_url(cls, value: str) -> str:
