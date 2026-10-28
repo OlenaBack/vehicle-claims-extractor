@@ -4,10 +4,10 @@ from pathlib import Path
 
 from pydantic import ValidationError
 
-from ..run_records import DocumentRunRecord
+from ..extraction_run_records import AccidentExtractionRecord
 
 
-def read_run_records(path: Path) -> list[DocumentRunRecord]:
+def read_accident_extraction_records(path: Path) -> list[AccidentExtractionRecord]:
     records = []
 
     with path.open(encoding="utf-8") as source:
@@ -16,7 +16,7 @@ def read_run_records(path: Path) -> list[DocumentRunRecord]:
                 continue
 
             try:
-                record = DocumentRunRecord.model_validate_json(line)
+                record = AccidentExtractionRecord.model_validate_json(line)
             except ValidationError as error:
                 raise ValueError(
                     f"{path}, line {line_number}: {error}"

@@ -17,9 +17,9 @@ from vehicle_accidents_extractor.extraction.prompt_loader import (
 from vehicle_accidents_extractor.extraction.response_validator import ResponseValidator
 from vehicle_accidents_extractor.llm.config import Config, ModelConfig, Sampling, load_config
 from vehicle_accidents_extractor.llm.llm_client import LLMClient
-from vehicle_accidents_extractor.run_records import RunMetadata
-from vehicle_accidents_extractor.runs.accident_batch_processor import AccidentBatchProcessor
-from vehicle_accidents_extractor.runs.extraction_result_writer import ExtractionResultWriter
+from vehicle_accidents_extractor.extraction_run_records import ExtractionRunMetadata
+from vehicle_accidents_extractor.runs.accident_extraction_runner import AccidentExtractionRunner
+from vehicle_accidents_extractor.runs.extraction_record_writer import ExtractionRecordWriter
 from vehicle_accidents_extractor.schema import VehicleAccident
 
 
@@ -31,7 +31,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--model", default="openrouter")
     parser.add_argument("--prompt", default="v1")
     parser.add_argument("--sampling", default="deterministic")
-    parser.add_argument("--dataset", default="batch-01")
+    parser.add_argument("--batch", default="batch-01")
     return parser.parse_args()
 
 
@@ -41,20 +41,20 @@ def resolve_api_key(model_config: ModelConfig) -> str | None:
     return os.getenv(model_config.api_key_env, "").strip() or None
 
 
-def build_run_metadata(
+def build_extraction_run_metadata(
     *,
     model_profile: str,
     sampling_profile: str,
-    dataset: str,
+    batch: str,
     config: Config,
     model_config: ModelConfig,
     sampling: Sampling,
     prompts: ExtractionPrompts,
-) -> RunMetadata:
-    return RunMetadata(
+) -> ExtractionRunMetadata:
+    return ExtractionRunMetadata(
         run_id=uuid4().hex,
         started_at=datetime.now(timezone.utc),
-        dataset=dataset,
+        batch=batch,
         model_profile=model_profile,
         model=model_config.model,
         base_url=model_config.base_url,
@@ -71,6 +71,46 @@ def build_run_metadata(
     )
 
 
+def find_accident_description_files(batch: str) -> list[Path]:
+    texts_directory = ROOT / "data" / "batches" / batch / "texts"
+    description_files = sorted(texts_directory.glob("*.txt"))
+    if not description_files:
+        raise ValueError(f"No accident description files found in {texts_directory}")
+    return description_files
+
+
+def build_accident_extractor(
+    llm: LLMClient,
+    prompts: ExtractionPrompts,
+    sampling: Sampling,
+    max_tokens: int,
+) -> AccidentExtractor:
+    return AccidentExtractor(
+        llm,
+        PromptBuilder(prompts.system_prompt, prompts.repair_prompt),
+        ResponseValidator(VehicleAccident),
+        sampling,
+        max_tokens,
+    )
+
+
+def process_extraction_run(
+    description_files: list[Path],
+    extractor: AccidentExtractor,
+    run_metadata: ExtractionRunMetadata,
+) -> tuple[int, Path]:
+    model_name = run_metadata.model.replace("/", "-")
+    filename = (
+        f"{run_metadata.model_profile}__{model_name}__"
+        f"{run_metadata.prompt_version}__{run_metadata.sampling_profile}__"
+        f"{run_metadata.run_id}.jsonl"
+    )
+    output_path = ROOT / "extractions" / run_metadata.batch / filename
+    with ExtractionRecordWriter(output_path, run_metadata) as writer:
+        processed = AccidentExtractionRunner(extractor, writer).run(description_files)
+    return processed, output_path
+
+
 def run(args: argparse.Namespace) -> None:
     load_dotenv(ROOT / ".env")
     config = load_config()
@@ -82,15 +122,12 @@ def run(args: argparse.Namespace) -> None:
         return
 
     prompts = load_extraction_prompts(ROOT / "prompts", args.prompt)
-    dataset_directory = ROOT / "data" / "batches" / args.dataset
-    documents = sorted((dataset_directory / "texts").glob("*.txt"))
-    if not documents:
-        raise ValueError(f"No accident text documents found in {dataset_directory / 'texts'}")
+    description_files = find_accident_description_files(args.batch)
 
-    run_metadata = build_run_metadata(
+    run_metadata = build_extraction_run_metadata(
         model_profile=args.model,
         sampling_profile=args.sampling,
-        dataset=args.dataset,
+        batch=args.batch,
         config=config,
         model_config=model_config,
         sampling=sampling,
@@ -109,20 +146,10 @@ def run(args: argparse.Namespace) -> None:
             print(f"Skipping {args.model}: {connection_error}")
             return
 
-        extractor = AccidentExtractor(
-            llm,
-            PromptBuilder(prompts.system_prompt, prompts.repair_prompt),
-            ResponseValidator(VehicleAccident),
-            sampling,
-            config.max_tokens,
-        )
-        model_name = model_config.model.replace("/", "-")
-        filename = f"{args.model}__{model_name}__{args.prompt}__{args.sampling}__{run_metadata.run_id}.jsonl"
-        output_path = ROOT / "extractions" / run_metadata.dataset / filename
-        with ExtractionResultWriter(output_path, run_metadata) as writer:
-            processed = AccidentBatchProcessor(extractor, writer).run(documents)
+        extractor = build_accident_extractor(llm, prompts, sampling, config.max_tokens)
+        processed, output_path = process_extraction_run(description_files, extractor, run_metadata)
 
-        print(f"Saved {processed} document results to {output_path}")
+        print(f"Saved {processed} extraction records to {output_path}")
 
 
 def main() -> None:

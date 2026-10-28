@@ -182,5 +182,5 @@ class GoldenRecord(BaseModel):
 
     model_config = ConfigDict(extra="forbid", strict=True)
 
-    id: str = Field(description="Case ID matching the text filename without .txt.")
+    accident_id: str = Field(description="Identifier for the accident described by this record.")
     labels: VehicleAccident

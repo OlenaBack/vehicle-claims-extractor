@@ -1,1 +1,1 @@
-"""Process document batches and persist extraction results."""
+"""Process accident batches and persist extraction records."""

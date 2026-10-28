@@ -1,20 +1,20 @@
-"""Define the persisted format shared by result writing and evaluation."""
+"""Define run metadata and per-accident extraction records."""
 
 from datetime import datetime
 
 from pydantic import BaseModel, ConfigDict
 
-from .extraction_status import ExtractionStatus
+from .extraction.extraction_status import ExtractionStatus
 from .llm.llm_client import LLMResult
 from .schema import VehicleAccident
 
 
-class RunMetadata(BaseModel):
+class ExtractionRunMetadata(BaseModel):
     model_config = ConfigDict(extra="forbid", frozen=True)
 
     run_id: str
     started_at: datetime
-    dataset: str = "batch-01"  # Compatibility default for the two original baseline runs.
+    batch: str
 
     model_profile: str
     model: str
@@ -34,11 +34,11 @@ class RunMetadata(BaseModel):
     price_per_1m: tuple[float, float]  # USD per 1M tokens: (input, output)
 
 
-class DocumentRunRecord(BaseModel):
+class AccidentExtractionRecord(BaseModel):
     model_config = ConfigDict(extra="forbid", frozen=True)
 
-    run: RunMetadata
-    document_id: str
+    run: ExtractionRunMetadata
+    accident_id: str
 
     status: ExtractionStatus
     accident: VehicleAccident | None

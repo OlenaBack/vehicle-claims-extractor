@@ -5,27 +5,27 @@ from pathlib import Path
 from typing import TextIO
 
 from ..extraction.accident_extractor import AccidentExtractionResult
-from ..run_records import DocumentRunRecord, RunMetadata
+from ..extraction_run_records import AccidentExtractionRecord, ExtractionRunMetadata
 
 
-class ExtractionResultWriter:
-    def __init__(self, path: Path, run_metadata: RunMetadata):
+class ExtractionRecordWriter:
+    def __init__(self, path: Path, run_metadata: ExtractionRunMetadata):
         self._path = path
         self._run_metadata = run_metadata
         self._file: TextIO | None = None
 
-    def __enter__(self) -> "ExtractionResultWriter":
+    def __enter__(self) -> "ExtractionRecordWriter":
         self._path.parent.mkdir(parents=True, exist_ok=True)
         self._file = self._path.open("x", encoding="utf-8")
         return self
 
-    def write(self, document_id: str, result: AccidentExtractionResult) -> None:
+    def write(self, accident_id: str, result: AccidentExtractionResult) -> None:
         if self._file is None:
-            raise RuntimeError("Use ExtractionResultWriter inside a with block")
+            raise RuntimeError("Use ExtractionRecordWriter inside a with block")
 
-        record = DocumentRunRecord(
+        record = AccidentExtractionRecord(
             run=self._run_metadata,
-            document_id=document_id,
+            accident_id=accident_id,
             status=result.status,
             accident=result.accident,
             calls=result.calls,

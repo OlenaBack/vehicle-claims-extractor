@@ -1,16 +1,16 @@
 """Turn one accident description into a validated VehicleAccident.
 
 Coordinate the client, prompt builder and validator, allowing one repair.
-Record whole-document latency and each call's outcome.
+Record whole-description latency and each call's outcome.
 """
 
 import time
 from dataclasses import dataclass
 
-from ..extraction_status import ExtractionStatus
 from ..llm.config import Sampling
 from ..llm.llm_client import LLMClient, LLMResult
 from ..schema import VehicleAccident
+from .extraction_status import ExtractionStatus
 from .prompt_builder import PromptBuilder
 from .response_validator import ResponseValidator, UnrepairableResponse
 
@@ -53,7 +53,7 @@ class AccidentExtractor:
         }
 
     def extract(self, text: str) -> AccidentExtractionResult:
-        """Process one document, preserving every call and allowing one repair."""
+        """Process one accident description, preserving every call and allowing one repair."""
         start = time.perf_counter()
         messages = self._prompts.initial(text)
         calls: list[LLMResult] = []

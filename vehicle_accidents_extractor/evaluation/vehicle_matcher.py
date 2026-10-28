@@ -1,19 +1,15 @@
 """Pair vehicles by label, then maximum normalized field agreement."""
 
 from itertools import permutations
-from typing import Any
+
+from .value_normalizer import normalize_value
 
 VEHICLE_FIELDS = ("label", "year", "make", "model", "towed")
 
 
-def normalize(value: Any) -> Any:
-    """Trim and casefold strings; other JSON values compare exactly."""
-    return value.strip().casefold() if isinstance(value, str) else value
-
-
 def vehicle_agreement(expected: dict, produced: dict) -> int:
     """Number of the five vehicle fields that match."""
-    return sum(normalize(expected[f]) == normalize(produced[f]) for f in VEHICLE_FIELDS)
+    return sum(normalize_value(expected[f]) == normalize_value(produced[f]) for f in VEHICLE_FIELDS)
 
 
 def match_vehicles(
@@ -26,11 +22,11 @@ def match_vehicles(
     3. Ties are broken by vehicle contents, and every returned list is sorted by contents.
     Returns (pairs, missed expected vehicles, extra produced vehicles).
     """
-    produced_by_label = {normalize(v["label"]): v for v in produced if v["label"] is not None}
+    produced_by_label = {normalize_value(v["label"]): v for v in produced if v["label"] is not None}
     pairs: list[tuple[dict, dict]] = []
     gold_left: list[dict] = []
     for vehicle in expected:
-        partner = produced_by_label.pop(normalize(vehicle["label"]), None) if vehicle["label"] is not None else None
+        partner = produced_by_label.pop(normalize_value(vehicle["label"]), None) if vehicle["label"] is not None else None
         if partner is not None:
             pairs.append((vehicle, partner))
         else:
@@ -72,4 +68,4 @@ def _signature(pairs: list[tuple[dict, dict]]) -> tuple:
 
 
 def _vehicle_key(vehicle: dict) -> tuple:
-    return tuple(repr(normalize(vehicle[field])) for field in VEHICLE_FIELDS)
+    return tuple(repr(normalize_value(vehicle[field])) for field in VEHICLE_FIELDS)

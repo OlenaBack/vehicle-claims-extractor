@@ -2,15 +2,15 @@
 
 from dataclasses import dataclass
 
-from ..run_records import DocumentRunRecord
+from ..extraction_run_records import AccidentExtractionRecord
 from ..schema import GoldenRecord
 from .accident_extraction_scorer import score_accident
 
 
 @dataclass(frozen=True)
 class RunMetrics:
-    document_count: int
-    golden_document_count: int
+    accident_count: int
+    golden_accident_count: int
     correct: int
     total: int
     by_field: dict[str, tuple[int, int]]
@@ -18,9 +18,9 @@ class RunMetrics:
     final_valid_count: int
     latency_p50_seconds: float
     latency_p95_seconds: float
-    cost_per_1000_documents: float
+    cost_per_1000_accidents: float
     unknown_usage_calls: int
-    documents_with_unknown_usage: int
+    accidents_with_unknown_usage: int
     cost_is_lower_bound: bool
 
     @property
@@ -29,15 +29,15 @@ class RunMetrics:
 
     @property
     def first_attempt_validity(self) -> float:
-        return self.first_attempt_valid_count / self.document_count
+        return self.first_attempt_valid_count / self.accident_count
 
     @property
     def final_validity(self) -> float:
-        return self.final_valid_count / self.document_count
+        return self.final_valid_count / self.accident_count
 
 
 def calculate_run_metrics(
-    records: list[DocumentRunRecord],
+    records: list[AccidentExtractionRecord],
     golden: list[GoldenRecord],
 ) -> RunMetrics:
     """Aggregate accuracy, validity, latency and known API cost for one run.
@@ -51,22 +51,22 @@ def calculate_run_metrics(
     if not golden:
         raise ValueError("Cannot calculate accuracy without golden labels")
 
-    by_id = {record.document_id: record for record in records}
+    by_id = {record.accident_id: record for record in records}
     if len(by_id) != len(records):
-        raise ValueError("Duplicate document IDs in run records")
-    if len({label.id for label in golden}) != len(golden):
-        raise ValueError("Duplicate document IDs in golden labels")
+        raise ValueError("Duplicate accident IDs in run records")
+    if len({label.accident_id for label in golden}) != len(golden):
+        raise ValueError("Duplicate accident IDs in golden labels")
     run = records[0].run
     if any(record.run != run for record in records):
         raise ValueError("Run records contain mixed metadata")
-    missing = sorted(label.id for label in golden if label.id not in by_id)
+    missing = sorted(label.accident_id for label in golden if label.accident_id not in by_id)
     if missing:
-        raise ValueError(f"Missing results for golden documents: {', '.join(missing)}")
+        raise ValueError(f"Missing extractions for golden accidents: {', '.join(missing)}")
 
     correct = total = 0
     field_counts: dict[str, list[int]] = {}
     for label in golden:
-        record = by_id[label.id]
+        record = by_id[label.accident_id]
         produced = None if record.status == "failed" else record.accident
         score = score_accident(label.labels, produced)
         correct += score.correct
@@ -78,9 +78,9 @@ def calculate_run_metrics(
 
     input_price, output_price = run.price_per_1m
     known_cost = 0.0
-    unknown_usage_calls = documents_with_unknown_usage = 0
+    unknown_usage_calls = accidents_with_unknown_usage = 0
     for record in records:
-        document_has_unknown_usage = False
+        accident_has_unknown_usage = False
         for call in record.calls:
             for attempt in call.attempts:
                 known_cost += (
@@ -89,13 +89,13 @@ def calculate_run_metrics(
                 ) / 1_000_000
                 if attempt.input_tokens is None or attempt.output_tokens is None:
                     unknown_usage_calls += 1
-                    document_has_unknown_usage = True
-        documents_with_unknown_usage += int(document_has_unknown_usage)
+                    accident_has_unknown_usage = True
+        accidents_with_unknown_usage += int(accident_has_unknown_usage)
 
     latencies = sorted(record.latency_seconds for record in records)
     return RunMetrics(
-        document_count=len(records),
-        golden_document_count=len(golden),
+        accident_count=len(records),
+        golden_accident_count=len(golden),
         correct=correct,
         total=total,
         by_field={field: (counts[0], counts[1]) for field, counts in field_counts.items()},
@@ -103,9 +103,9 @@ def calculate_run_metrics(
         final_valid_count=sum(record.status != "failed" for record in records),
         latency_p50_seconds=_percentile(latencies, 0.5),
         latency_p95_seconds=_percentile(latencies, 0.95),
-        cost_per_1000_documents=known_cost / len(records) * 1000,
+        cost_per_1000_accidents=known_cost / len(records) * 1000,
         unknown_usage_calls=unknown_usage_calls,
-        documents_with_unknown_usage=documents_with_unknown_usage,
+        accidents_with_unknown_usage=accidents_with_unknown_usage,
         cost_is_lower_bound=unknown_usage_calls > 0 and (input_price > 0 or output_price > 0),
     )
 

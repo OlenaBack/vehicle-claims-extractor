@@ -9,7 +9,8 @@ from dataclasses import dataclass
 from typing import Any
 
 from ..schema import VehicleAccident
-from .vehicle_matcher import VEHICLE_FIELDS, match_vehicles, normalize
+from .value_normalizer import normalize_value
+from .vehicle_matcher import VEHICLE_FIELDS, match_vehicles
 
 SCALAR_FIELDS = (
     "accident_type",
@@ -59,7 +60,7 @@ def score_accident(expected: VehicleAccident, produced: VehicleAccident | None) 
 
 
 class _Scorer:
-    """Accumulates correct/total units and mismatches for one document."""
+    """Accumulates correct/total units and mismatches for one accident description."""
 
     def __init__(self) -> None:
         self._counts: dict[str, list[int]] = {}
@@ -71,18 +72,18 @@ class _Scorer:
         counts[1] += total
 
     def scalar(self, field: str, expected: Any, produced: Any, *, failed: bool) -> None:
-        correct = not failed and normalize(expected) == normalize(produced)
+        correct = not failed and normalize_value(expected) == normalize_value(produced)
         self._add(field, int(correct), 1)
         if not correct:
             self._mismatches.append(FieldMismatch(field, expected, produced))
 
     def items(self, field: str, expected: list, produced: list | None) -> None:
         """Intersection over union; a failed extraction scores 0 over the expected items."""
-        gold = {normalize(item) for item in expected}
+        gold = {normalize_value(item) for item in expected}
         if produced is None:
             correct, total = 0, max(len(gold), 1)
         else:
-            pred = {normalize(item) for item in produced}
+            pred = {normalize_value(item) for item in produced}
             union = gold | pred
             correct, total = (len(gold & pred), len(union)) if union else (1, 1)
         self._add(field, correct, total)
@@ -117,7 +118,7 @@ class _Scorer:
         for field in VEHICLE_FIELDS:
             gold = expected[field] if expected else None
             pred = produced[field] if produced else None
-            correct = expected is not None and produced is not None and normalize(gold) == normalize(pred)
+            correct = expected is not None and produced is not None and normalize_value(gold) == normalize_value(pred)
             self._add(f"vehicles.{field}", int(correct), 1)
             if not correct:
                 self._mismatches.append(FieldMismatch(f"vehicles.{field}", gold, pred))
