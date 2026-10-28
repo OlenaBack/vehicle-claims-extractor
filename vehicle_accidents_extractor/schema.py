@@ -180,7 +180,7 @@ class VehicleAccident(BaseModel):
 class GoldenRecord(BaseModel):
     """One record in golden.jsonl; labels use the model output schema."""
 
-    model_config = ConfigDict(extra="forbid", strict=True)
+    model_config = ConfigDict(extra="forbid", strict=True, populate_by_name=True)
 
     accident_id: str = Field(description="Identifier for the accident described by this record.")
-    labels: VehicleAccident
+    golden_label: VehicleAccident = Field(alias="labels")

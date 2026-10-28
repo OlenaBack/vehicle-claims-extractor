@@ -52,14 +52,14 @@ class AccidentExtractor:
             },
         }
 
-    def extract(self, text: str) -> AccidentExtractionOutcome:
+    def extract(self, accident_description: str) -> AccidentExtractionOutcome:
         """Process one accident description, preserving every call and allowing one repair."""
-        start = time.perf_counter()
-        messages = self._prompts.initial(text)
+        extraction_started_at = time.perf_counter()
+        messages = self._prompts.initial(accident_description)
         calls: list[LLMResult] = []
         validation_errors: list[str] = []
 
-        for index in range(2):
+        for call_index in range(2):
             llm_result = self._llm.call(
                 messages=messages,
                 temperature=self._sampling.temperature,
@@ -74,21 +74,23 @@ class AccidentExtractor:
             except UnrepairableResponse as unrepairable:
                 return AccidentExtractionOutcome(
                     "failed", None, tuple(calls), tuple(validation_errors),
-                    time.perf_counter() - start, str(unrepairable),
+                    time.perf_counter() - extraction_started_at, str(unrepairable),
                 )
             except ValueError as validation_error:
-                error = str(validation_error)
+                validation_error_message = str(validation_error)
             else:
                 return AccidentExtractionOutcome(
-                    "valid" if index == 0 else "repaired", accident,
-                    tuple(calls), tuple(validation_errors), time.perf_counter() - start,
+                    "valid" if call_index == 0 else "repaired", accident,
+                    tuple(calls), tuple(validation_errors), time.perf_counter() - extraction_started_at,
                 )
 
-            validation_errors.append(error)
-            if index == 0:
-                messages = self._prompts.repair(messages, llm_result.content, error)
+            validation_errors.append(validation_error_message)
+            if call_index == 0:
+                messages = self._prompts.repair(
+                    messages, llm_result.content, validation_error_message,
+                )
 
         return AccidentExtractionOutcome(
             "failed", None, tuple(calls), tuple(validation_errors),
-            time.perf_counter() - start, validation_errors[-1],
+            time.perf_counter() - extraction_started_at, validation_errors[-1],
         )

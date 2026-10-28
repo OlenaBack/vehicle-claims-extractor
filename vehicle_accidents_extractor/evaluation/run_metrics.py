@@ -2,7 +2,7 @@
 
 from dataclasses import dataclass
 
-from ..accident_extraction_record import AccidentExtractionRecord
+from ..extraction_run_records import AccidentExtractionRecord
 from ..schema import GoldenRecord
 from .accident_extraction_scorer import score_accident
 
@@ -19,8 +19,8 @@ class RunMetrics:
     latency_p50_seconds: float
     latency_p95_seconds: float
     cost_per_1000_accidents: float
-    unknown_usage_calls: int
-    accidents_with_unknown_usage: int
+    unknown_usage_attempts: int
+    accidents_with_unknown_token_usage: int
     cost_is_lower_bound: bool
 
     @property
@@ -37,38 +37,53 @@ class RunMetrics:
 
 
 def calculate_run_metrics(
-    records: list[AccidentExtractionRecord],
-    golden: list[GoldenRecord],
+    extraction_records: list[AccidentExtractionRecord],
+    golden_records: list[GoldenRecord],
 ) -> RunMetrics:
     """Aggregate accuracy, validity, latency and known API cost for one run.
 
     Unknown token usage contributes no estimated charge, making nonzero-price
-    cost estimates lower bounds. unknown_usage_calls counts HTTP attempts,
+    cost estimates lower bounds. unknown_usage_attempts counts HTTP attempts,
     including retries, rather than logical LLM calls.
     """
-    if not records:
+    if not extraction_records:
         raise ValueError("Cannot calculate metrics for an empty run")
-    if not golden:
+    if not golden_records:
         raise ValueError("Cannot calculate accuracy without golden labels")
 
-    by_id = {record.accident_id: record for record in records}
-    if len(by_id) != len(records):
+    extraction_records_by_accident_id = {
+        extraction_record.accident_id: extraction_record
+        for extraction_record in extraction_records
+    }
+    if len(extraction_records_by_accident_id) != len(extraction_records):
         raise ValueError("Duplicate accident IDs in run records")
-    if len({label.accident_id for label in golden}) != len(golden):
+    if len({golden_record.accident_id for golden_record in golden_records}) != len(golden_records):
         raise ValueError("Duplicate accident IDs in golden labels")
-    run = records[0].run
-    if any(record.run != run for record in records):
+    run_metadata = extraction_records[0].run_metadata
+    if any(
+        extraction_record.run_metadata != run_metadata
+        for extraction_record in extraction_records
+    ):
         raise ValueError("Run records contain mixed metadata")
-    missing = sorted(label.accident_id for label in golden if label.accident_id not in by_id)
-    if missing:
-        raise ValueError(f"Missing extractions for golden accidents: {', '.join(missing)}")
+    missing_golden_accident_ids = sorted(
+        golden_record.accident_id
+        for golden_record in golden_records
+        if golden_record.accident_id not in extraction_records_by_accident_id
+    )
+    if missing_golden_accident_ids:
+        raise ValueError(
+            "Missing extractions for golden accidents: "
+            f"{', '.join(missing_golden_accident_ids)}"
+        )
 
     correct = total = 0
     field_counts: dict[str, list[int]] = {}
-    for label in golden:
-        record = by_id[label.accident_id]
-        produced = None if record.status == "failed" else record.accident
-        score = score_accident(label.labels, produced)
+    for golden_record in golden_records:
+        extraction_record = extraction_records_by_accident_id[golden_record.accident_id]
+        extracted_accident = (
+            None if extraction_record.status == "failed" else extraction_record.extracted_accident
+        )
+        score = score_accident(golden_record.golden_label, extracted_accident)
         correct += score.correct
         total += score.total
         for field, (field_correct, field_total) in score.by_field.items():
@@ -76,37 +91,43 @@ def calculate_run_metrics(
             counts[0] += field_correct
             counts[1] += field_total
 
-    input_price, output_price = run.price_per_1m
-    known_cost = 0.0
-    unknown_usage_calls = accidents_with_unknown_usage = 0
-    for record in records:
-        accident_has_unknown_usage = False
-        for call in record.calls:
-            for attempt in call.attempts:
-                known_cost += (
+    input_price, output_price = run_metadata.price_per_1m
+    known_cost_usd = 0.0
+    unknown_usage_attempts = accidents_with_unknown_token_usage = 0
+    for extraction_record in extraction_records:
+        accident_has_unknown_token_usage = False
+        for llm_call in extraction_record.calls:
+            for attempt in llm_call.attempts:
+                known_cost_usd += (
                     (attempt.input_tokens or 0) * input_price
                     + (attempt.output_tokens or 0) * output_price
                 ) / 1_000_000
                 if attempt.input_tokens is None or attempt.output_tokens is None:
-                    unknown_usage_calls += 1
-                    accident_has_unknown_usage = True
-        accidents_with_unknown_usage += int(accident_has_unknown_usage)
+                    unknown_usage_attempts += 1
+                    accident_has_unknown_token_usage = True
+        accidents_with_unknown_token_usage += int(accident_has_unknown_token_usage)
 
-    latencies = sorted(record.latency_seconds for record in records)
+    accident_latencies = sorted(
+        extraction_record.latency_seconds for extraction_record in extraction_records
+    )
     return RunMetrics(
-        accident_count=len(records),
-        golden_accident_count=len(golden),
+        accident_count=len(extraction_records),
+        golden_accident_count=len(golden_records),
         correct=correct,
         total=total,
         by_field={field: (counts[0], counts[1]) for field, counts in field_counts.items()},
-        first_attempt_valid_count=sum(record.status == "valid" for record in records),
-        final_valid_count=sum(record.status != "failed" for record in records),
-        latency_p50_seconds=_percentile(latencies, 0.5),
-        latency_p95_seconds=_percentile(latencies, 0.95),
-        cost_per_1000_accidents=known_cost / len(records) * 1000,
-        unknown_usage_calls=unknown_usage_calls,
-        accidents_with_unknown_usage=accidents_with_unknown_usage,
-        cost_is_lower_bound=unknown_usage_calls > 0 and (input_price > 0 or output_price > 0),
+        first_attempt_valid_count=sum(
+            extraction_record.status == "valid" for extraction_record in extraction_records
+        ),
+        final_valid_count=sum(
+            extraction_record.status != "failed" for extraction_record in extraction_records
+        ),
+        latency_p50_seconds=_percentile(accident_latencies, 0.5),
+        latency_p95_seconds=_percentile(accident_latencies, 0.95),
+        cost_per_1000_accidents=known_cost_usd / len(extraction_records) * 1000,
+        unknown_usage_attempts=unknown_usage_attempts,
+        accidents_with_unknown_token_usage=accidents_with_unknown_token_usage,
+        cost_is_lower_bound=unknown_usage_attempts > 0 and (input_price > 0 or output_price > 0),
     )
 
 

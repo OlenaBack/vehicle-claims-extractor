@@ -24,8 +24,11 @@ _Avoid_: test set
 The human-prepared structured accident facts for one description in the golden set.
 _Avoid_: expected output, answer key
 
+**Batch extraction**:
+Processing accident descriptions in a batch using one model, prompt version, and sampling configuration.
+
 **Extraction run**:
-One pass over a batch using one model, one prompt version, and one sampling configuration.
+The recorded instance of a batch extraction, including its settings and per-accident records.
 _Avoid_: job, batch run
 
 **Accident extraction record**:

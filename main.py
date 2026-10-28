@@ -9,7 +9,9 @@ from dotenv import load_dotenv
 from vehicle_accidents_extractor.artifact_paths import ArtifactPaths
 from vehicle_accidents_extractor.input_paths import InputPaths
 from vehicle_accidents_extractor.llm.config import ModelConfig, load_config
-from vehicle_accidents_extractor.runs.extraction_run import ExtractionRunBuilder
+from vehicle_accidents_extractor.batch.accident_batch_extractor import (
+    AccidentBatchExtractorBuilder,
+)
 
 
 ROOT = Path(__file__).resolve().parent
@@ -40,23 +42,23 @@ def run(args: argparse.Namespace) -> None:
         return
 
     with (
-        ExtractionRunBuilder(config, InputPaths(ROOT))
+        AccidentBatchExtractorBuilder(config, InputPaths(ROOT))
         .for_accident_batch(args.batch)
         .with_model_profile(args.model, api_key)
         .with_prompt_version(args.prompt)
         .with_sampling_profile(args.sampling)
         .saving_records_to(ArtifactPaths(ROOT))
         .build()
-    ) as extraction_run:
-        if connection_error := extraction_run.ping():
+    ) as batch_extractor:
+        if connection_error := batch_extractor.ping():
             print(f"Skipping {args.model}: {connection_error}")
             return
 
-        processed_count = extraction_run.execute()
+        processed_count = batch_extractor.extract()
 
     print(
         f"Saved {processed_count} extraction records to "
-        f"{extraction_run.extraction_run_records_path}"
+        f"{batch_extractor.extraction_run_records_path}"
     )
 
 

@@ -26,18 +26,18 @@ class ResponseValidator(Generic[ModelT]):
         """The model used for both the requested JSON shape and validation."""
         return self._schema
 
-    def validate(self, result: LLMResult) -> ModelT:
+    def validate(self, llm_result: LLMResult) -> ModelT:
         """Return validated data.
 
         Raises UnrepairableResponse when processing must stop, or ValueError when one
         repair may help: invalid JSON, schema violation, or truncated output.
         """
-        if result.error:
-            raise UnrepairableResponse(result.error)
-        if not result.has_content:
+        if llm_result.error:
+            raise UnrepairableResponse(llm_result.error)
+        if not llm_result.has_content:
             raise UnrepairableResponse("Response had no content")
-        if result.finish_reason == "length":
+        if llm_result.finish_reason == "length":
             raise ValueError("Response was truncated (finish_reason='length')")
-        if result.finish_reason != "stop":
-            raise UnrepairableResponse(f"Unexpected finish_reason: {result.finish_reason!r}")
-        return self._schema.model_validate_json(result.content)
+        if llm_result.finish_reason != "stop":
+            raise UnrepairableResponse(f"Unexpected finish_reason: {llm_result.finish_reason!r}")
+        return self._schema.model_validate_json(llm_result.content)

@@ -27,8 +27,8 @@ LIST_FIELDS = ("weather", "area_type")
 @dataclass(frozen=True)
 class FieldMismatch:
     field: str      # e.g. "lighting", "weather", "vehicles.make"
-    expected: Any   # None for an extra produced vehicle
-    produced: Any   # None for a missed vehicle or a failed extraction
+    golden_value: Any    # None for an extra extracted vehicle
+    extracted_value: Any # None for a missed vehicle or failed extraction
 
 
 @dataclass(frozen=True)
@@ -43,19 +43,30 @@ class AccidentScore:
         return self.correct / self.total
 
 
-def score_accident(expected: VehicleAccident, produced: VehicleAccident | None) -> AccidentScore:
-    """Compare one prediction with one golden label. None means the extraction failed."""
+def score_accident(
+    golden_label: VehicleAccident,
+    extracted_accident: VehicleAccident | None,
+) -> AccidentScore:
+    """Compare an extracted accident with its golden label; None means extraction failed."""
     scorer = _Scorer()
-    gold = expected.model_dump(mode="json")
-    pred = produced.model_dump(mode="json") if produced is not None else None
+    golden_fields = golden_label.model_dump(mode="json")
+    extracted_fields = extracted_accident.model_dump(mode="json") if extracted_accident is not None else None
 
     for field in SCALAR_FIELDS:
-        scorer.scalar(field, gold[field], pred[field] if pred else None, failed=pred is None)
+        scorer.scalar(
+            field,
+            golden_fields[field],
+            extracted_fields[field] if extracted_fields else None,
+            extraction_failed=extracted_fields is None,
+        )
 
     for field in LIST_FIELDS:
-        scorer.items(field, gold[field], pred[field] if pred else None)
+        scorer.items(field, golden_fields[field], extracted_fields[field] if extracted_fields else None)
 
-    scorer.vehicles(gold["vehicles"], pred["vehicles"] if pred else None)
+    scorer.vehicles(
+        golden_fields["vehicles"],
+        extracted_fields["vehicles"] if extracted_fields else None,
+    )
     return scorer.result()
 
 
@@ -71,57 +82,79 @@ class _Scorer:
         counts[0] += correct
         counts[1] += total
 
-    def scalar(self, field: str, expected: Any, produced: Any, *, failed: bool) -> None:
-        correct = not failed and normalize_value(expected) == normalize_value(produced)
+    def scalar(
+        self,
+        field: str,
+        golden_value: Any,
+        extracted_value: Any,
+        *,
+        extraction_failed: bool,
+    ) -> None:
+        correct = not extraction_failed and normalize_value(golden_value) == normalize_value(extracted_value)
         self._add(field, int(correct), 1)
         if not correct:
-            self._mismatches.append(FieldMismatch(field, expected, produced))
+            self._mismatches.append(FieldMismatch(field, golden_value, extracted_value))
 
-    def items(self, field: str, expected: list, produced: list | None) -> None:
-        """Intersection over union; a failed extraction scores 0 over the expected items."""
-        gold = {normalize_value(item) for item in expected}
-        if produced is None:
-            correct, total = 0, max(len(gold), 1)
+    def items(self, field: str, golden_items: list, extracted_items: list | None) -> None:
+        """Intersection over union; a failed extraction scores 0 over the golden items."""
+        normalized_golden_items = {normalize_value(item) for item in golden_items}
+        if extracted_items is None:
+            correct, total = 0, max(len(normalized_golden_items), 1)
         else:
-            pred = {normalize_value(item) for item in produced}
-            union = gold | pred
-            correct, total = (len(gold & pred), len(union)) if union else (1, 1)
+            normalized_extracted_items = {normalize_value(item) for item in extracted_items}
+            union = normalized_golden_items | normalized_extracted_items
+            correct, total = (
+                (len(normalized_golden_items & normalized_extracted_items), len(union))
+                if union else (1, 1)
+            )
         self._add(field, correct, total)
         if correct < total:
             self._mismatches.append(FieldMismatch(
-                field, sorted(expected), sorted(produced) if produced is not None else None,
+                field,
+                sorted(golden_items),
+                sorted(extracted_items) if extracted_items is not None else None,
             ))
 
-    def vehicles(self, expected: list[dict], produced: list[dict] | None) -> None:
-        if produced is None:
-            if not expected:
+    def vehicles(self, golden_vehicles: list[dict], extracted_vehicles: list[dict] | None) -> None:
+        if extracted_vehicles is None:
+            if not golden_vehicles:
                 self._add("vehicles", 0, 1)
                 self._mismatches.append(FieldMismatch("vehicles", [], None))
-            _, missed, _ = match_vehicles(expected, [])
-            for vehicle in missed:
-                self._vehicle_pair(vehicle, None)
+            _, missed_golden_vehicles, _ = match_vehicles(golden_vehicles, [])
+            for golden_vehicle in missed_golden_vehicles:
+                self._vehicle_pair(golden_vehicle, None)
             return
-        if not expected and not produced:
+        if not golden_vehicles and not extracted_vehicles:
             self._add("vehicles", 1, 1)
             return
 
-        pairs, missed, extra = match_vehicles(expected, produced)
-        for gold, pred in pairs:
-            self._vehicle_pair(gold, pred)
-        for gold in missed:
-            self._vehicle_pair(gold, None)
-        for pred in extra:
-            self._vehicle_pair(None, pred)
+        pairs, missed_golden_vehicles, extra_extracted_vehicles = match_vehicles(
+            golden_vehicles, extracted_vehicles,
+        )
+        for golden_vehicle, extracted_vehicle in pairs:
+            self._vehicle_pair(golden_vehicle, extracted_vehicle)
+        for golden_vehicle in missed_golden_vehicles:
+            self._vehicle_pair(golden_vehicle, None)
+        for extracted_vehicle in extra_extracted_vehicles:
+            self._vehicle_pair(None, extracted_vehicle)
 
-    def _vehicle_pair(self, expected: dict | None, produced: dict | None) -> None:
+    def _vehicle_pair(
+        self,
+        golden_vehicle: dict | None,
+        extracted_vehicle: dict | None,
+    ) -> None:
         """Five units; a missing side makes all five incorrect."""
         for field in VEHICLE_FIELDS:
-            gold = expected[field] if expected else None
-            pred = produced[field] if produced else None
-            correct = expected is not None and produced is not None and normalize_value(gold) == normalize_value(pred)
+            golden_value = golden_vehicle[field] if golden_vehicle else None
+            extracted_value = extracted_vehicle[field] if extracted_vehicle else None
+            correct = (
+                golden_vehicle is not None
+                and extracted_vehicle is not None
+                and normalize_value(golden_value) == normalize_value(extracted_value)
+            )
             self._add(f"vehicles.{field}", int(correct), 1)
             if not correct:
-                self._mismatches.append(FieldMismatch(f"vehicles.{field}", gold, pred))
+                self._mismatches.append(FieldMismatch(f"vehicles.{field}", golden_value, extracted_value))
 
     def result(self) -> AccidentScore:
         by_field = {field: (c, t) for field, (c, t) in self._counts.items()}

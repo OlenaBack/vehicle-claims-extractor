@@ -69,7 +69,7 @@ class LLMClient:
         model: str,
         timeout_seconds: int,
         max_retries: int,
-        openai: OpenAI | None = None,  # a ready SDK client (e.g. a fake in tests); LLMClient takes ownership and closes it
+        openai_client: OpenAI | None = None,  # an injected SDK client; LLMClient takes ownership and closes it
     ):
         if max_retries < 0:
             raise ValueError("max_retries must be >= 0")
@@ -77,8 +77,8 @@ class LLMClient:
         self.max_retries = max_retries
         # max_retries=0 turns off the SDK's own hidden retries, so we can count and log each try ourselves.
         # Applied to an injected client too, so attempts and timing stay accurate.
-        sdk = openai or OpenAI(base_url=base_url, api_key=api_key)
-        self._openai = sdk.with_options(timeout=timeout_seconds, max_retries=0)
+        sdk_client = openai_client or OpenAI(base_url=base_url, api_key=api_key)
+        self._openai_client = sdk_client.with_options(timeout=timeout_seconds, max_retries=0)
 
     def __enter__(self) -> "LLMClient":
         return self
@@ -88,7 +88,7 @@ class LLMClient:
 
     def close(self) -> None:
         """Release the network connections, including those of an injected SDK client."""
-        self._openai.close()
+        self._openai_client.close()
 
     def ping(self, timeout_seconds: float = 10) -> str | None:
         """Quick "are you there?" check before a long run.
@@ -96,7 +96,7 @@ class LLMClient:
         Returns None if the server answers, otherwise the error name and message.
         """
         try:
-            self._openai.with_options(timeout=timeout_seconds).models.list()
+            self._openai_client.with_options(timeout=timeout_seconds).models.list()
         except OpenAIError as error:
             return f"{type(error).__name__}: {error}"
         return None
@@ -119,7 +119,7 @@ class LLMClient:
         for attempt in range(self.max_retries + 1):
             start = time.perf_counter()
             try:
-                response = self._openai.chat.completions.create(
+                response = self._openai_client.chat.completions.create(
                     model=self.model,
                     messages=messages,
                     temperature=temperature,

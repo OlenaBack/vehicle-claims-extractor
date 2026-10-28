@@ -2,7 +2,7 @@
 
 from datetime import datetime
 
-from pydantic import BaseModel, ConfigDict
+from pydantic import BaseModel, ConfigDict, Field
 
 from .extraction.extraction_status import ExtractionStatus
 from .llm.llm_client import LLMResult
@@ -35,13 +35,13 @@ class ExtractionRunMetadata(BaseModel):
 
 
 class AccidentExtractionRecord(BaseModel):
-    model_config = ConfigDict(extra="forbid", frozen=True)
+    model_config = ConfigDict(extra="forbid", frozen=True, populate_by_name=True)
 
-    run: ExtractionRunMetadata
+    run_metadata: ExtractionRunMetadata = Field(alias="run")
     accident_id: str
 
     status: ExtractionStatus
-    accident: VehicleAccident | None
+    extracted_accident: VehicleAccident | None = Field(alias="accident")
 
     calls: tuple[LLMResult, ...]
     repair_attempted: bool

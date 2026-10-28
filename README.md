@@ -27,7 +27,7 @@ Defined in [`vehicle_accidents_extractor/llm/llm_client.py`](vehicle_accidents_e
 
 - [`extraction/`](vehicle_accidents_extractor/extraction/): accident extraction, prompt loading and building, and response validation.
 - [`evaluation/`](vehicle_accidents_extractor/evaluation/): accident scoring and vehicle matching.
-- [`runs/`](vehicle_accidents_extractor/runs/): extraction run assembly and execution, batch processing, and extraction record writing.
+- [`batch/`](vehicle_accidents_extractor/batch/): batch extraction setup and execution, and accident extraction record writing.
 - [`llm/`](vehicle_accidents_extractor/llm/): model communication, configuration loading and [`config.toml`](vehicle_accidents_extractor/llm/config.toml).
 - [`input_paths.py`](vehicle_accidents_extractor/input_paths.py) and [`artifact_paths.py`](vehicle_accidents_extractor/artifact_paths.py): locations for batch inputs and saved extraction records.
 
@@ -41,7 +41,7 @@ The schema remains at package level. [`main.py`](main.py) connects the component
 flowchart TD
     Main[main entry point] -->|loads| ConfigFile[Config file]
     ConfigFile -->|validated as| Config[Config]
-    Main -->|passes config and choices| Builder[ExtractionRunBuilder]
+    Main -->|passes config and choices| Builder[AccidentBatchExtractorBuilder]
     Main -->|creates and passes| Inputs[InputPaths]
     Main -->|passes output path resolver| Builder
     Builder -->|requests description paths| Inputs
@@ -53,33 +53,48 @@ flowchart TD
     Builder -->|creates| PromptBuilder
     Builder -->|uses run metadata| ArtifactPaths[ArtifactPaths]
     ArtifactPaths -->|returns extraction run records path| Builder
-    Builder -->|builds| Run[ExtractionRun]
+    Builder -->|builds| BatchExtractor[AccidentBatchExtractor]
     Builder -->|creates| Client[LLMClient]
-    Builder -->|creates| Extractor[AccidentExtractor]
+    Builder -->|creates| AccidentExtractor[AccidentExtractor]
     Builder -->|creates| Validator[ResponseValidator]
 ```
 
-### Process the accident batch
+### Process an accident batch
 
 ```mermaid
 flowchart TD
-    Main[main entry point] -->|checks connection and executes| Run[ExtractionRun]
-    Run -->|checks connection| Client[LLMClient]
-    Run -->|reads each description and passes text| Extractor[AccidentExtractor]
-    Extractor -->|requests initial or repair messages| PromptBuilder[PromptBuilder]
-    PromptBuilder -->|messages| Extractor
-    Extractor -->|sends chat request| Client
+    Main[main entry point] -->|pings, then extracts the batch| BatchExtractor[AccidentBatchExtractor]
+    BatchExtractor -->|reads each description and uses| AccidentExtractor[AccidentExtractor]
+    AccidentExtractor -->|returns outcome| BatchExtractor
+    BatchExtractor -->|sends accident ID and outcome| Writer[AccidentExtractionRecordWriter]
+```
+
+### Extract and validate one accident description
+
+```mermaid
+flowchart TD
+    Text[Accident description text] --> Extractor[AccidentExtractor]
+    Extractor -->|requests initial messages| PromptBuilder[PromptBuilder]
+    PromptBuilder -->|initial or repair messages| Extractor
+    Extractor -->|sends chat request| Client[LLMClient]
     Client -->|returns response and attempts| LLMResult[LLMResult]
-    LLMResult -->|response| Extractor
-    Extractor -->|passes response to| Validator[ResponseValidator]
-    Validator -->|returns validated accident| Accident[VehicleAccident]
-    Accident -->|validated data| Extractor
-    Validator -->|returns validation error| Extractor
-    Extractor -->|returns| Outcome[AccidentExtractionOutcome]
-    Outcome -->|accident ID and outcome| Run
-    Run -->|writes with run metadata and records path| Writer[ExtractionRecordWriter]
-    Writer -->|serializes| Record[AccidentExtractionRecord]
-    Record -->|JSONL line| JSONL[Saved extraction run]
+    LLMResult --> Extractor
+    Extractor -->|validates response| Validator[ResponseValidator]
+    Validator -->|valid data| Accident[VehicleAccident]
+    Validator -->|repairable or unrepairable error| Extractor
+    Accident --> Extractor
+    Extractor -->|requests repair messages| PromptBuilder
+    Extractor -->|valid, repaired, or failed| Outcome[AccidentExtractionOutcome]
+```
+
+### Save accident extraction records
+
+```mermaid
+flowchart TD
+    BatchExtractor[AccidentBatchExtractor] -->|provides run metadata and path| Writer[AccidentExtractionRecordWriter]
+    BatchExtractor -->|provides accident ID and outcome| Writer
+    Writer -->|creates| Record[AccidentExtractionRecord]
+    Record -->|writes one JSONL line| JSONL[Saved extraction run]
 ```
 
 ### Evaluate a saved extraction run

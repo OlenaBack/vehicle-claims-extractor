@@ -49,25 +49,25 @@ class Config(BaseModel):
     models: dict[str, ModelConfig] = Field(min_length=1)
     sampling: dict[str, Sampling] = Field(min_length=1)
 
-    def get_model(self, name: str) -> ModelConfig:
-        if name not in self.models:
+    def get_model(self, model_profile: str) -> ModelConfig:
+        if model_profile not in self.models:
             raise ValueError(
-                f"Unknown model profile {name!r}. Available: {', '.join(self.models)}"
+                f"Unknown model profile {model_profile!r}. Available: {', '.join(self.models)}"
             )
-        return self.models[name]
+        return self.models[model_profile]
 
-    def get_sampling(self, name: str) -> Sampling:
-        if name not in self.sampling:
+    def get_sampling(self, sampling_profile: str) -> Sampling:
+        if sampling_profile not in self.sampling:
             raise ValueError(
-                f"Unknown sampling profile {name!r}. Available: {', '.join(self.sampling)}"
+                f"Unknown sampling profile {sampling_profile!r}. Available: {', '.join(self.sampling)}"
             )
-        return self.sampling[name]
+        return self.sampling[sampling_profile]
 
 
-def load_config(path: Path = DEFAULT_CONFIG_PATH) -> Config:
+def load_config(config_path: Path = DEFAULT_CONFIG_PATH) -> Config:
     """Read TOML and validate it without loading or requiring credentials.
 
     The default file sits beside this module; explicit paths are relative
     to the caller's working directory. File, TOML and validation errors propagate.
     """
-    return Config.model_validate(tomllib.loads(path.read_text(encoding="utf-8")))
+    return Config.model_validate(tomllib.loads(config_path.read_text(encoding="utf-8")))
