@@ -16,13 +16,13 @@ class AccidentExtractionRunner:
         self._extractor = extractor
         self._writer = writer
 
-    def run(self, description_files: Iterable[Path]) -> int:
-        processed = 0
+    def run(self, accident_file_paths: Iterable[Path]) -> int:
+        processed_count = 0
 
-        for description_file in description_files:
-            text = description_file.read_text(encoding="utf-8")
-            result = self._extractor.extract(text)
-            self._writer.write(description_file.stem, result)
-            processed += 1
+        for accident_file in accident_file_paths:
+            text = accident_file.read_text(encoding="utf-8")
+            outcome = self._extractor.extract(text)
+            self._writer.write(accident_file.stem, outcome)
+            processed_count += 1
 
-        return processed
+        return processed_count

@@ -1,4 +1,4 @@
-"""Status values shared by extraction outcomes and persisted run records."""
+"""Status values for accident extraction outcomes."""
 
 from typing import Literal
 

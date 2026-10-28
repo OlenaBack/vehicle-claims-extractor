@@ -9,6 +9,7 @@ from vehicle_accidents_extractor.evaluation.run_metrics import (
 from vehicle_accidents_extractor.evaluation.accident_extraction_record_reader import (
     read_accident_extraction_records,
 )
+from vehicle_accidents_extractor.input_paths import InputPaths
 from vehicle_accidents_extractor.schema import GoldenRecord
 
 
@@ -17,7 +18,12 @@ ROOT = Path(__file__).resolve().parent
 
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--results", type=Path, required=True)
+    parser.add_argument(
+        "--extraction-run",
+        type=Path,
+        required=True,
+        help="Path to a saved extraction run JSONL file.",
+    )
     parser.add_argument(
         "--golden",
         type=Path,
@@ -29,11 +35,11 @@ def main() -> None:
     args = parse_args()
 
     try:
-        records = read_accident_extraction_records(args.results)
+        records = read_accident_extraction_records(args.extraction_run)
         if not records:
-            raise ValueError("Cannot evaluate an empty run")
+            raise ValueError("Cannot evaluate an extraction run with no accident records")
         batch = records[0].run.batch
-        golden_path = args.golden or ROOT / "data" / "batches" / batch / "golden.jsonl"
+        golden_path = args.golden or InputPaths(ROOT).golden_labels_path(batch)
         golden = [
             GoldenRecord.model_validate_json(line)
             for line in golden_path.read_text(encoding="utf-8").splitlines()

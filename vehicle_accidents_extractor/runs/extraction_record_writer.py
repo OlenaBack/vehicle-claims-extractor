@@ -4,7 +4,7 @@ import json
 from pathlib import Path
 from typing import TextIO
 
-from ..extraction.accident_extractor import AccidentExtractionResult
+from ..extraction.accident_extractor import AccidentExtractionOutcome
 from ..extraction_run_records import AccidentExtractionRecord, ExtractionRunMetadata
 
 
@@ -19,20 +19,20 @@ class ExtractionRecordWriter:
         self._file = self._path.open("x", encoding="utf-8")
         return self
 
-    def write(self, accident_id: str, result: AccidentExtractionResult) -> None:
+    def write(self, accident_id: str, outcome: AccidentExtractionOutcome) -> None:
         if self._file is None:
             raise RuntimeError("Use ExtractionRecordWriter inside a with block")
 
         record = AccidentExtractionRecord(
             run=self._run_metadata,
             accident_id=accident_id,
-            status=result.status,
-            accident=result.accident,
-            calls=result.calls,
-            repair_attempted=result.repair_attempted,
-            validation_errors=result.validation_errors,
-            latency_seconds=result.latency_seconds,
-            error=result.error,
+            status=outcome.status,
+            accident=outcome.accident,
+            calls=outcome.calls,
+            repair_attempted=outcome.repair_attempted,
+            validation_errors=outcome.validation_errors,
+            latency_seconds=outcome.latency_seconds,
+            error=outcome.error,
         )
         line = json.dumps(record.model_dump(mode="json"), ensure_ascii=False, allow_nan=False)
         self._file.write(line + "\n")

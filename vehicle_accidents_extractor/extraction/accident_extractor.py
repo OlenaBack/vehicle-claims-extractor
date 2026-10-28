@@ -16,7 +16,7 @@ from .response_validator import ResponseValidator, UnrepairableResponse
 
 
 @dataclass(frozen=True)
-class AccidentExtractionResult:
+class AccidentExtractionOutcome:
     status: ExtractionStatus
     accident: VehicleAccident | None
     calls: tuple[LLMResult, ...]
@@ -52,7 +52,7 @@ class AccidentExtractor:
             },
         }
 
-    def extract(self, text: str) -> AccidentExtractionResult:
+    def extract(self, text: str) -> AccidentExtractionOutcome:
         """Process one accident description, preserving every call and allowing one repair."""
         start = time.perf_counter()
         messages = self._prompts.initial(text)
@@ -72,14 +72,14 @@ class AccidentExtractor:
             try:
                 accident = self._validator.validate(llm_result)
             except UnrepairableResponse as unrepairable:
-                return AccidentExtractionResult(
+                return AccidentExtractionOutcome(
                     "failed", None, tuple(calls), tuple(validation_errors),
                     time.perf_counter() - start, str(unrepairable),
                 )
             except ValueError as validation_error:
                 error = str(validation_error)
             else:
-                return AccidentExtractionResult(
+                return AccidentExtractionOutcome(
                     "valid" if index == 0 else "repaired", accident,
                     tuple(calls), tuple(validation_errors), time.perf_counter() - start,
                 )
@@ -88,7 +88,7 @@ class AccidentExtractor:
             if index == 0:
                 messages = self._prompts.repair(messages, llm_result.content, error)
 
-        return AccidentExtractionResult(
+        return AccidentExtractionOutcome(
             "failed", None, tuple(calls), tuple(validation_errors),
             time.perf_counter() - start, validation_errors[-1],
         )

@@ -1,26 +1,15 @@
-"""Run one model, prompt version and sampling profile over the accident reports."""
+"""Run one model, prompt version and sampling profile over a batch's accident descriptions."""
 
 import argparse
 import os
-from datetime import datetime, timezone
 from pathlib import Path
-from uuid import uuid4
 
 from dotenv import load_dotenv
 
-from vehicle_accidents_extractor.extraction.accident_extractor import AccidentExtractor
-from vehicle_accidents_extractor.extraction.prompt_builder import PromptBuilder
-from vehicle_accidents_extractor.extraction.prompt_loader import (
-    ExtractionPrompts,
-    load_extraction_prompts,
-)
-from vehicle_accidents_extractor.extraction.response_validator import ResponseValidator
-from vehicle_accidents_extractor.llm.config import Config, ModelConfig, Sampling, load_config
-from vehicle_accidents_extractor.llm.llm_client import LLMClient
-from vehicle_accidents_extractor.extraction_run_records import ExtractionRunMetadata
-from vehicle_accidents_extractor.runs.accident_extraction_runner import AccidentExtractionRunner
-from vehicle_accidents_extractor.runs.extraction_record_writer import ExtractionRecordWriter
-from vehicle_accidents_extractor.schema import VehicleAccident
+from vehicle_accidents_extractor.artifact_paths import ArtifactPaths
+from vehicle_accidents_extractor.input_paths import InputPaths
+from vehicle_accidents_extractor.llm.config import ModelConfig, load_config
+from vehicle_accidents_extractor.runs.extraction_run import ExtractionRunBuilder
 
 
 ROOT = Path(__file__).resolve().parent
@@ -41,115 +30,31 @@ def resolve_api_key(model_config: ModelConfig) -> str | None:
     return os.getenv(model_config.api_key_env, "").strip() or None
 
 
-def build_extraction_run_metadata(
-    *,
-    model_profile: str,
-    sampling_profile: str,
-    batch: str,
-    config: Config,
-    model_config: ModelConfig,
-    sampling: Sampling,
-    prompts: ExtractionPrompts,
-) -> ExtractionRunMetadata:
-    return ExtractionRunMetadata(
-        run_id=uuid4().hex,
-        started_at=datetime.now(timezone.utc),
-        batch=batch,
-        model_profile=model_profile,
-        model=model_config.model,
-        base_url=model_config.base_url,
-        prompt_version=prompts.version,
-        system_hash=prompts.system_hash,
-        repair_hash=prompts.repair_hash,
-        sampling_profile=sampling_profile,
-        temperature=sampling.temperature,
-        top_p=sampling.top_p,
-        timeout_seconds=config.timeout_seconds,
-        max_retries=config.max_retries,
-        max_tokens=config.max_tokens,
-        price_per_1m=model_config.price_per_1m,
-    )
-
-
-def find_accident_description_files(batch: str) -> list[Path]:
-    texts_directory = ROOT / "data" / "batches" / batch / "texts"
-    description_files = sorted(texts_directory.glob("*.txt"))
-    if not description_files:
-        raise ValueError(f"No accident description files found in {texts_directory}")
-    return description_files
-
-
-def build_accident_extractor(
-    llm: LLMClient,
-    prompts: ExtractionPrompts,
-    sampling: Sampling,
-    max_tokens: int,
-) -> AccidentExtractor:
-    return AccidentExtractor(
-        llm,
-        PromptBuilder(prompts.system_prompt, prompts.repair_prompt),
-        ResponseValidator(VehicleAccident),
-        sampling,
-        max_tokens,
-    )
-
-
-def process_extraction_run(
-    description_files: list[Path],
-    extractor: AccidentExtractor,
-    run_metadata: ExtractionRunMetadata,
-) -> tuple[int, Path]:
-    model_name = run_metadata.model.replace("/", "-")
-    filename = (
-        f"{run_metadata.model_profile}__{model_name}__"
-        f"{run_metadata.prompt_version}__{run_metadata.sampling_profile}__"
-        f"{run_metadata.run_id}.jsonl"
-    )
-    output_path = ROOT / "extractions" / run_metadata.batch / filename
-    with ExtractionRecordWriter(output_path, run_metadata) as writer:
-        processed = AccidentExtractionRunner(extractor, writer).run(description_files)
-    return processed, output_path
-
-
 def run(args: argparse.Namespace) -> None:
     load_dotenv(ROOT / ".env")
     config = load_config()
     model_config = config.get_model(args.model)
-    sampling = config.get_sampling(args.sampling)
     api_key = resolve_api_key(model_config)
     if api_key is None:
         print(f"Skipping {args.model}: missing {model_config.api_key_env}")
         return
 
-    prompts = load_extraction_prompts(ROOT / "prompts", args.prompt)
-    description_files = find_accident_description_files(args.batch)
-
-    run_metadata = build_extraction_run_metadata(
-        model_profile=args.model,
-        sampling_profile=args.sampling,
-        batch=args.batch,
-        config=config,
-        model_config=model_config,
-        sampling=sampling,
-        prompts=prompts,
-    )
-
-    with LLMClient(
-        base_url=model_config.base_url,
-        api_key=api_key,
-        model=model_config.model,
-        timeout_seconds=config.timeout_seconds,
-        max_retries=config.max_retries,
-    ) as llm:
-        connection_error = llm.ping()
-        if connection_error:
+    with (
+        ExtractionRunBuilder(config, InputPaths(ROOT))
+        .for_accident_batch(args.batch)
+        .with_model_profile(args.model, api_key)
+        .with_prompt_version(args.prompt)
+        .with_sampling_profile(args.sampling)
+        .build()
+    ) as extraction_run:
+        if connection_error := extraction_run.ping():
             print(f"Skipping {args.model}: {connection_error}")
             return
 
-        extractor = build_accident_extractor(llm, prompts, sampling, config.max_tokens)
-        processed, output_path = process_extraction_run(description_files, extractor, run_metadata)
+        records_path = ArtifactPaths(ROOT).extraction_records_path(extraction_run.run_metadata)
+        processed_count = extraction_run.execute(records_path)
 
-        print(f"Saved {processed} extraction records to {output_path}")
+    print(f"Saved {processed_count} extraction records to {records_path}")
 
 
 def main() -> None:

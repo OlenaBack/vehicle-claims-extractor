@@ -27,8 +27,9 @@ Defined in [`vehicle_accidents_extractor/llm/llm_client.py`](vehicle_accidents_e
 
 - [`extraction/`](vehicle_accidents_extractor/extraction/): accident extraction, prompt loading and building, and response validation.
 - [`evaluation/`](vehicle_accidents_extractor/evaluation/): accident scoring and vehicle matching.
-- [`runs/`](vehicle_accidents_extractor/runs/): batch extraction orchestration and extraction record writing.
+- [`runs/`](vehicle_accidents_extractor/runs/): extraction run assembly and execution, batch processing, and extraction record writing.
 - [`llm/`](vehicle_accidents_extractor/llm/): model communication, configuration loading and [`config.toml`](vehicle_accidents_extractor/llm/config.toml).
+- [`input_paths.py`](vehicle_accidents_extractor/input_paths.py) and [`artifact_paths.py`](vehicle_accidents_extractor/artifact_paths.py): locations for batch inputs and saved extraction records.
 
 The schema remains at package level. [`main.py`](main.py) connects the components.
 
@@ -37,17 +38,16 @@ The schema remains at package level. [`main.py`](main.py) connects the component
 ```mermaid
 flowchart TD
     ConfigFile["llm/config.toml"] --> Config["Config<br/>ModelConfig + Sampling"]
-    PromptFiles["prompts/&lt;version&gt;/"] --> Prompts["ExtractionPrompts<br/>texts + hashes"]
-    TextFiles["data/batches/&lt;batch&gt;/texts/*.txt"] --> Main["main.run()"]
+    TextFiles["data/batches/&lt;batch&gt;/texts/*.txt"] -->|paths| Inputs["InputPaths"]
+    PromptFiles["prompts/&lt;version&gt;/"] -->|selected prompt files| RunBuilder
     Config --> Main
-    Prompts --> Main
-    Main --> Metadata["ExtractionRunMetadata"]
-    Main --> Client["LLMClient"]
-
-    Main --> FilePaths["description file paths"]
-    FilePaths --> Runner["AccidentExtractionRunner"]
+    Inputs --> RunBuilder
+    Main["main.run()"] -->|config + selected profiles| RunBuilder["ExtractionRunBuilder"]
+    RunBuilder -->|builds| Run["ExtractionRun<br/>run metadata + client + extractor + file paths"]
+    Run -->|ping()| Client["LLMClient"]
+    Run --> Runner["AccidentExtractionRunner"]
     Runner -->|read one file as text| Extractor["AccidentExtractor.extract(text)"]
-    Prompts --> Builder["PromptBuilder"]
+    RunBuilder -->|system + repair prompts| Builder["PromptBuilder"]
     Extractor --> Builder
     Builder -->|messages| Client
     Client -->|response + attempts| LLMResult["LLMResult<br/>LLMAttempt entries"]
@@ -55,17 +55,22 @@ flowchart TD
     Validator -->|valid| Accident["VehicleAccident"]
     Validator -->|repairable error| Repair["PromptBuilder.repair()"]
     Repair -->|corrected messages| Client
-    Accident --> ExtractionResult["AccidentExtractionResult"]
-    LLMResult --> ExtractionResult
-    ExtractionResult --> Runner
+    Accident --> ExtractionOutcome["AccidentExtractionOutcome"]
+    LLMResult --> ExtractionOutcome
+    ExtractionOutcome --> Runner
 
-    Runner -->|accident_id + result| Writer["ExtractionRecordWriter"]
+    Runner -->|accident_id + outcome| Writer["ExtractionRecordWriter"]
+    Run --> Metadata["ExtractionRunMetadata"]
     Metadata --> Writer
     Writer --> Record["AccidentExtractionRecord"]
     Record --> JSONL["extractions/&lt;batch&gt;/*.jsonl"]
+    Main --> ArtifactPaths["ArtifactPaths"]
+    Metadata --> ArtifactPaths
+    ArtifactPaths -->|records path| Run
 
     JSONL --> Reader["read_accident_extraction_records()"]
-    GoldenFile["data/batches/&lt;batch&gt;/golden.jsonl"] --> Golden["GoldenRecord entries"]
+    Inputs -->|golden_labels_path()| GoldenFile["data/batches/&lt;batch&gt;/golden.jsonl"]
+    GoldenFile --> Golden["GoldenRecord entries"]
     Reader --> Metrics["calculate_run_metrics()"]
     Golden --> Metrics
     Metrics --> Score["AccidentScore + RunMetrics"]
