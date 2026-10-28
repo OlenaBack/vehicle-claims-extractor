@@ -6,12 +6,12 @@ class PromptBuilder:
         self._system_prompt = system_prompt
         self._repair_prompt = repair_prompt
 
-    def initial(self, accident_description: str) -> list[dict]:
+    def initial(self, narrative: str) -> list[dict]:
         return [
             {"role": "system", "content": self._system_prompt},
             {
                 "role": "user",
-                "content": f"<description>\n{accident_description}\n</description>",
+                "content": f"<description>\n{narrative}\n</description>",
             },
         ]
 

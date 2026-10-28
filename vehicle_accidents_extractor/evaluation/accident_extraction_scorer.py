@@ -71,7 +71,7 @@ def score_accident(
 
 
 class _Scorer:
-    """Accumulates correct/total units and mismatches for one accident description."""
+    """Accumulates correct/total units and mismatches for one accident narrative."""
 
     def __init__(self) -> None:
         self._counts: dict[str, list[int]] = {}

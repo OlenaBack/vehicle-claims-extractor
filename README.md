@@ -1,6 +1,6 @@
 # vehicle-claims-extractor
 
-Extract structured data from vehicle accident descriptions and compare a provider LLM with a local model on accuracy, validity, latency and cost.
+Extract structured data from vehicle accident narratives and compare a provider LLM with a local model on accuracy, validity, latency and cost.
 
 The project requirements are in [REQUIREMENTS.md](REQUIREMENTS.md).
 
@@ -8,7 +8,7 @@ The project requirements are in [REQUIREMENTS.md](REQUIREMENTS.md).
 
 `data/batches/batch-01/`:
 
-- `texts/<SCASEID>.txt`: 30 accident descriptions sourced from the National Highway Traffic Safety Administration (NHTSA), adapted into 20 English, 5 Swedish and 5 mixed English–Swedish texts. One file per case, named by NHTSA case ID.
+- `texts/<SCASEID>.txt`: 30 accident narratives sourced from the National Highway Traffic Safety Administration (NHTSA), adapted into 20 English, 5 Swedish and 5 mixed English–Swedish texts. One file per case, named by NHTSA case ID.
 - `golden.jsonl`: hand-made labels for 10 of the 30 texts, one record per line.
 
 Source and license: [data/README.md](data/README.md).
@@ -44,8 +44,8 @@ flowchart TD
     Main -->|passes config and choices| Builder[AccidentBatchExtractorBuilder]
     Main -->|creates and passes| Inputs[InputPaths]
     Main -->|passes output path resolver| Builder
-    Builder -->|requests description paths| Inputs
-    Inputs -->|returns description paths and prompt directory| Builder
+    Builder -->|requests batch input paths| Inputs
+    Inputs -->|returns batch input paths and prompt directory| Builder
     Builder -->|loads selected version with| PromptLoader[Prompt loader]
     PromptFiles[Prompt files] -->|read by| PromptLoader
     PromptLoader -->|returns| Prompts[ExtractionPrompts]
@@ -64,16 +64,16 @@ flowchart TD
 ```mermaid
 flowchart TD
     Main[main entry point] -->|pings, then extracts the batch| BatchExtractor[AccidentBatchExtractor]
-    BatchExtractor -->|reads each description and uses| AccidentExtractor[AccidentExtractor]
+    BatchExtractor -->|reads each narrative and uses| AccidentExtractor[AccidentExtractor]
     AccidentExtractor -->|returns outcome| BatchExtractor
     BatchExtractor -->|sends accident ID and outcome| Writer[AccidentExtractionRecordWriter]
 ```
 
-### Extract and validate one accident description
+### Extract and validate one accident narrative
 
 ```mermaid
 flowchart TD
-    Text[Accident description text] --> Extractor[AccidentExtractor]
+    Narrative[Accident narrative] --> Extractor[AccidentExtractor]
     Extractor -->|requests initial messages| PromptBuilder[PromptBuilder]
     PromptBuilder -->|initial or repair messages| Extractor
     Extractor -->|sends chat request| Client[LLMClient]

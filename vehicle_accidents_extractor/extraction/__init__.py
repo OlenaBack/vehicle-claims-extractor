@@ -1,1 +1,1 @@
-"""Produce validated accident predictions from descriptions."""
+"""Produce validated accident predictions from narratives."""

@@ -1,4 +1,4 @@
-"""Build and extract all accident descriptions in one batch."""
+"""Build and extract all accident narratives in one batch."""
 
 from datetime import datetime, timezone
 from pathlib import Path
@@ -22,13 +22,13 @@ class AccidentBatchExtractor:
         self,
         llm_client: LLMClient,
         accident_extractor: AccidentExtractor,
-        accident_batch_file_paths: list[Path],
+        accident_batch_input_paths: list[Path],
         run_metadata: ExtractionRunMetadata,
         extraction_run_records_path: Path,
     ):
         self._llm_client = llm_client
         self._accident_extractor = accident_extractor
-        self._accident_batch_file_paths = accident_batch_file_paths
+        self._accident_batch_input_paths = accident_batch_input_paths
         self.run_metadata = run_metadata
         self.extraction_run_records_path = extraction_run_records_path
 
@@ -46,10 +46,10 @@ class AccidentBatchExtractor:
             self.extraction_run_records_path, self.run_metadata,
         ) as record_writer:
             processed_count = 0
-            for accident_batch_file_path in self._accident_batch_file_paths:
-                accident_description = accident_batch_file_path.read_text(encoding="utf-8")
-                outcome = self._accident_extractor.extract(accident_description)
-                record_writer.write(accident_batch_file_path.stem, outcome)
+            for accident_batch_input_path in self._accident_batch_input_paths:
+                narrative = accident_batch_input_path.read_text(encoding="utf-8")
+                outcome = self._accident_extractor.extract(narrative)
+                record_writer.write(accident_batch_input_path.stem, outcome)
                 processed_count += 1
         return processed_count
 
@@ -98,7 +98,7 @@ class AccidentBatchExtractorBuilder:
         model_config = self._config.get_model(model_profile)
         sampling = self._config.get_sampling(sampling_profile)
         prompts = load_extraction_prompts(self._input_paths.prompts_directory, prompt_version)
-        accident_batch_file_paths = self._input_paths.list_accident_batch_files(accident_batch)
+        accident_batch_input_paths = self._input_paths.accident_batch_input_paths(accident_batch)
         run_metadata = ExtractionRunMetadata(
             run_id=uuid4().hex,
             started_at=datetime.now(timezone.utc),
@@ -135,7 +135,7 @@ class AccidentBatchExtractorBuilder:
         return AccidentBatchExtractor(
             llm_client,
             accident_extractor,
-            accident_batch_file_paths,
+            accident_batch_input_paths,
             run_metadata,
             extraction_run_records_path,
         )

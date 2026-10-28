@@ -1,4 +1,7 @@
-"""Define run metadata and per-accident extraction records."""
+"""Define run metadata and per-accident extraction records.
+
+Field aliases preserve saved JSON keys so existing extraction runs remain readable.
+"""
 
 from datetime import datetime
 

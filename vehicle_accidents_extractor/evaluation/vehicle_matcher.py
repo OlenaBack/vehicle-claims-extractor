@@ -101,7 +101,7 @@ def _best_assignment(
 
 
 def _signature(vehicle_pairs: list[tuple[dict, dict]]) -> tuple:
-    """Order-independent description of a pairing, used only to break ties."""
+    """Order-independent signature of a pairing, used only to break ties."""
     return tuple(
         sorted(
             (_vehicle_key(golden_vehicle), _vehicle_key(extracted_vehicle))

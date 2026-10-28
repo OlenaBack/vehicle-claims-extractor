@@ -1,4 +1,4 @@
-"""Run one model, prompt version and sampling profile over a batch's accident descriptions."""
+"""Run one model, prompt version and sampling profile over a batch of accident narratives."""
 
 import argparse
 import os

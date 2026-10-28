@@ -1,7 +1,7 @@
-"""Turn one accident description into a validated VehicleAccident.
+"""Turn one accident narrative into a validated VehicleAccident.
 
 Coordinate the client, prompt builder and validator, allowing one repair.
-Record whole-description latency and each call's outcome.
+Record whole-narrative latency and each call's outcome.
 """
 
 import time
@@ -52,10 +52,10 @@ class AccidentExtractor:
             },
         }
 
-    def extract(self, accident_description: str) -> AccidentExtractionOutcome:
-        """Process one accident description, preserving every call and allowing one repair."""
+    def extract(self, narrative: str) -> AccidentExtractionOutcome:
+        """Process one accident narrative, preserving every call and allowing one repair."""
         extraction_started_at = time.perf_counter()
-        messages = self._prompts.initial(accident_description)
+        messages = self._prompts.initial(narrative)
         calls: list[LLMResult] = []
         validation_errors: list[str] = []
 
