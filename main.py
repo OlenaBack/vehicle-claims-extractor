@@ -118,7 +118,7 @@ def run(args: argparse.Namespace) -> None:
         )
         model_name = model_config.model.replace("/", "-")
         filename = f"{args.model}__{model_name}__{args.prompt}__{args.sampling}__{run_metadata.run_id}.jsonl"
-        output_path = ROOT / "results" / run_metadata.dataset / filename
+        output_path = ROOT / "extractions" / run_metadata.dataset / filename
         with ExtractionResultWriter(output_path, run_metadata) as writer:
             processed = AccidentBatchProcessor(extractor, writer).run(documents)
 

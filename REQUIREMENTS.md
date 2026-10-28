@@ -20,7 +20,7 @@ Steps 1–2 form the checkpoint.
 - Define a schema with Pydantic or JSON Schema: at least 6 fields, at least 1 enum and at least 1 nested object or list.
 - Write a baseline prompt and connect a provider model through its API using structured output.
 - Handle transport failures (network errors, rate limits, timeouts) with retries and a timeout.
-- Run all 30 texts and save the results in `results/`.
+- Run all 30 texts and save the extraction records in `extractions/`.
 
 ### 2. Second model and measurements
 
@@ -80,7 +80,7 @@ One link to a public GitHub repository containing:
 - Service code and schema.
 - `prompts/` with prompt versions and a changelog.
 - `data/` with the texts and the golden set.
-- `results/` with model outputs and run logs, committed.
+- `extractions/` with model outputs and run logs, committed.
 - `REPORT.md` with the comparison report.
 - `README.md` with setup and run instructions, including how to install the local model.
 
