@@ -9,7 +9,7 @@ class ArtifactPaths:
     def __init__(self, project_root: Path):
         self.extractions_directory = project_root / "extractions"
 
-    def extraction_records_path(self, run_metadata: ExtractionRunMetadata) -> Path:
+    def extraction_run_records_path(self, run_metadata: ExtractionRunMetadata) -> Path:
         """Return the path for one run's JSONL extraction records."""
         file_safe_model_id = run_metadata.model.replace("/", "-")
         filename = (

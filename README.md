@@ -33,45 +33,63 @@ Defined in [`vehicle_accidents_extractor/llm/llm_client.py`](vehicle_accidents_e
 
 The schema remains at package level. [`main.py`](main.py) connects the components.
 
-## Data flow
+## Extraction and evaluation flow
 
 ```mermaid
 flowchart TD
-    ConfigFile["llm/config.toml"] --> Config["Config<br/>ModelConfig + Sampling"]
-    TextFiles["data/batches/&lt;batch&gt;/texts/*.txt"] -->|paths| Inputs["InputPaths"]
-    PromptFiles["prompts/&lt;version&gt;/"] -->|selected prompt files| RunBuilder
-    Config --> Main
-    Inputs --> RunBuilder
-    Main["main.run()"] -->|config + selected profiles| RunBuilder["ExtractionRunBuilder"]
-    RunBuilder -->|builds| Run["ExtractionRun<br/>run metadata + client + extractor + file paths"]
-    Run -->|ping()| Client["LLMClient"]
-    Run --> Runner["AccidentExtractionRunner"]
-    Runner -->|read one file as text| Extractor["AccidentExtractor.extract(text)"]
-    RunBuilder -->|system + repair prompts| Builder["PromptBuilder"]
-    Extractor --> Builder
-    Builder -->|messages| Client
-    Client -->|response + attempts| LLMResult["LLMResult<br/>LLMAttempt entries"]
-    LLMResult --> Validator["ResponseValidator.validate()"]
-    Validator -->|valid| Accident["VehicleAccident"]
-    Validator -->|repairable error| Repair["PromptBuilder.repair()"]
-    Repair -->|corrected messages| Client
-    Accident --> ExtractionOutcome["AccidentExtractionOutcome"]
-    LLMResult --> ExtractionOutcome
-    ExtractionOutcome --> Runner
+    subgraph RunSetup[Set up extraction run]
+        ConfigFile[Config file] -->|loaded and validated as| Config[Config]
+        Config -->|settings| Main[main entry point]
+        Main -->|config and selections| RunBuilder[ExtractionRunBuilder]
+        Main -->|creates and passes| Inputs[InputPaths]
+        Main -->|passes output path resolver| RunBuilder
+        RunBuilder -->|requests description paths| Inputs
+        Inputs -->|returns description paths| RunBuilder
+        Inputs -->|provides prompt directory| RunBuilder
+        RunBuilder -->|uses run metadata| ArtifactPaths[ArtifactPaths]
+        ArtifactPaths -->|returns extraction run records path| RunBuilder
+        RunBuilder -->|loads selected version| PromptLoader[Prompt loader]
+        PromptFiles[Prompt files] -->|read by| PromptLoader
+        PromptLoader -->|returns| Prompts[ExtractionPrompts]
+        Prompts -->|system and repair text| PromptBuilder[PromptBuilder]
+        RunBuilder -->|builds| Run[ExtractionRun]
+        RunBuilder -->|creates| Validator[ResponseValidator]
+        RunBuilder -->|creates| Client[LLMClient]
+        RunBuilder -->|creates| Extractor[AccidentExtractor]
+    end
 
-    Runner -->|accident_id + outcome| Writer["ExtractionRecordWriter"]
-    Run --> Metadata["ExtractionRunMetadata"]
-    Metadata --> Writer
-    Writer --> Record["AccidentExtractionRecord"]
-    Record --> JSONL["extractions/&lt;batch&gt;/*.jsonl"]
-    Main --> ArtifactPaths["ArtifactPaths"]
-    Metadata --> ArtifactPaths
-    ArtifactPaths -->|records path| Run
+    subgraph BatchExtraction[Extract the accident batch]
+        Main -->|checks connection| Run
+        Main -->|executes| Run
+        Run -->|checks connection| Client
+        Run -->|reads each description and passes text| Extractor
+        Extractor -->|builds messages| PromptBuilder
+        PromptBuilder -->|messages| Extractor
+        Extractor -->|sends request| Client
+        Client -->|returns response and attempts| LLMResult[LLMResult]
+        LLMResult -->|returns to| Extractor
+        Extractor -->|passes response to| Validator
+        Validator -->|returns validated accident| Accident[VehicleAccident]
+        Accident -->|validated data| Extractor
+        Validator -->|returns validation error| Extractor
+        Extractor -->|returns| Outcome[AccidentExtractionOutcome]
+        Outcome -->|accident ID and outcome| Run
+        Run -->|writes| Writer[ExtractionRecordWriter]
+        Run -->|run metadata| Writer
+        Run -->|extraction run records path| Writer
+        Writer -->|serializes| Record[AccidentExtractionRecord]
+        Record -->|JSONL line| JSONL[Saved extraction run]
+    end
 
-    JSONL --> Reader["read_accident_extraction_records()"]
-    Inputs -->|golden_labels_path()| GoldenFile["data/batches/&lt;batch&gt;/golden.jsonl"]
-    GoldenFile --> Golden["GoldenRecord entries"]
-    Reader --> Metrics["calculate_run_metrics()"]
-    Golden --> Metrics
-    Metrics --> Score["AccidentScore + RunMetrics"]
+    subgraph RunEvaluation[Evaluate extraction run]
+        JSONL -->|read| Reader[Accident extraction record reader]
+        Evaluate[evaluate entry point] -->|requests golden labels path| Inputs
+        Inputs -->|returns golden labels path| Evaluate
+        Evaluate -->|reads| GoldenFile[Golden labels file]
+        GoldenFile -->|validated as| Golden[GoldenRecord entries]
+        Reader -->|extraction records| Metrics[Run metrics]
+        Golden -->|golden records| Metrics
+        Evaluate -->|scores the run| Metrics
+        Metrics --> Scores[Accuracy validity latency cost]
+    end
 ```

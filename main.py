@@ -45,16 +45,19 @@ def run(args: argparse.Namespace) -> None:
         .with_model_profile(args.model, api_key)
         .with_prompt_version(args.prompt)
         .with_sampling_profile(args.sampling)
+        .saving_records_to(ArtifactPaths(ROOT))
         .build()
     ) as extraction_run:
         if connection_error := extraction_run.ping():
             print(f"Skipping {args.model}: {connection_error}")
             return
 
-        records_path = ArtifactPaths(ROOT).extraction_records_path(extraction_run.run_metadata)
-        processed_count = extraction_run.execute(records_path)
+        processed_count = extraction_run.execute()
 
-    print(f"Saved {processed_count} extraction records to {records_path}")
+    print(
+        f"Saved {processed_count} extraction records to "
+        f"{extraction_run.extraction_run_records_path}"
+    )
 
 
 def main() -> None:
