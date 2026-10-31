@@ -1,18 +1,23 @@
-"""Run one model, prompt version and sampling profile over a batch of accident narratives."""
+"""Run accident extraction: one setup by default, or every model, prompt and sampling setup with --all."""
 
 import argparse
-import os
 from pathlib import Path
 
 from dotenv import load_dotenv
 
 from vehicle_accidents_extractor.artifact_paths import ArtifactPaths
-from vehicle_accidents_extractor.input_paths import InputPaths
-from vehicle_accidents_extractor.llm.config import ModelConfig, load_config
-from vehicle_accidents_extractor.llm.llm_client import LLMClient
-from vehicle_accidents_extractor.batch.accident_batch_extractor import (
-    AccidentBatchExtractorBuilder,
+from vehicle_accidents_extractor.batch.extraction_setups import (
+    ExtractionSetup,
+    extraction_setups,
 )
+from vehicle_accidents_extractor.batch.model_session import extract_setups_with_model
+from vehicle_accidents_extractor.evaluation.golden_record_reader import read_golden_records
+from vehicle_accidents_extractor.evaluation.extraction_run_comparison import (
+    format_extraction_run_comparison,
+)
+from vehicle_accidents_extractor.extraction.prompt_loader import available_prompt_versions
+from vehicle_accidents_extractor.input_paths import InputPaths
+from vehicle_accidents_extractor.llm.config import load_config
 
 
 ROOT = Path(__file__).resolve().parent
@@ -24,55 +29,43 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--prompt", default="v1")
     parser.add_argument("--sampling", default="deterministic")
     parser.add_argument("--batch", default="batch-01")
+    parser.add_argument(
+        "--all",
+        action="store_true",
+        help=(
+            "Run every configured model with every prompt version and sampling profile, "
+            "then print a comparison table. Ignores --model, --prompt and --sampling."
+        ),
+    )
     return parser.parse_args()
-
-
-def resolve_api_key(model_config: ModelConfig) -> str | None:
-    if model_config.is_local:
-        return "ollama"
-    return os.getenv(model_config.api_key_env, "").strip() or None
 
 
 def run(args: argparse.Namespace) -> None:
     load_dotenv(ROOT / ".env")
     config = load_config()
-    model_config = config.get_model(args.model)
-    api_key = resolve_api_key(model_config)
-    if api_key is None:
-        print(f"Skipping {args.model}: missing {model_config.api_key_env}")
-        return
+    input_paths = InputPaths(ROOT)
+    artifact_paths = ArtifactPaths(ROOT)
 
-    with LLMClient(
-        base_url=model_config.base_url,
-        api_key=api_key,
-        model=model_config.model,
-        timeout_seconds=config.timeout_seconds,
-        max_retries=config.max_retries,
-    ) as llm_client:
-        if connection_error := llm_client.ping():
-            print(f"Skipping {args.model}: {connection_error}")
-            return
-
-        if model_config.is_local and (warm_up_error := llm_client.warm_up()):
-            print(f"Skipping {args.model}: warm-up failed: {warm_up_error}")
-            return
-
-        batch_extractor = (
-            AccidentBatchExtractorBuilder(config, InputPaths(ROOT))
-            .for_accident_batch(args.batch)
-            .with_model_profile(args.model)
-            .with_llm_client(llm_client)
-            .with_prompt_version(args.prompt)
-            .with_sampling_profile(args.sampling)
-            .saving_records_to(ArtifactPaths(ROOT))
-            .build()
+    if args.all:
+        model_profiles = list(config.models)
+        setups = extraction_setups(
+            available_prompt_versions(input_paths.prompts_directory), list(config.sampling),
         )
-        processed_count = batch_extractor.extract()
+    else:
+        model_profiles = [args.model]
+        setups = [ExtractionSetup(args.prompt, args.sampling)]
 
-    print(
-        f"Saved {processed_count} extraction records to "
-        f"{batch_extractor.extraction_run_records_path}"
-    )
+    saved_paths = [
+        path
+        for model_profile in model_profiles
+        for path in extract_setups_with_model(
+            config, model_profile, args.batch, setups, input_paths, artifact_paths,
+        )
+    ]
+
+    if args.all and saved_paths:
+        golden_records = read_golden_records(input_paths.golden_labels_path(args.batch))
+        print("\n" + format_extraction_run_comparison(saved_paths, golden_records))
 
 
 def main() -> None:

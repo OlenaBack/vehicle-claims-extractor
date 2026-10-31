@@ -5,6 +5,10 @@ from dataclasses import dataclass
 from pathlib import Path
 
 
+SYSTEM_PROMPT_FILENAME = "system.txt"
+REPAIR_PROMPT_FILENAME = "repair.txt"
+
+
 @dataclass(frozen=True)
 class ExtractionPrompts:
     prompt_version: str
@@ -14,10 +18,22 @@ class ExtractionPrompts:
     repair_hash: str
 
 
+def available_prompt_versions(prompts_directory: Path) -> list[str]:
+    """Prompt versions that have both a system and a repair prompt, sorted; raise if none."""
+    prompt_versions = sorted(
+        path.name
+        for path in prompts_directory.iterdir()
+        if (path / SYSTEM_PROMPT_FILENAME).is_file() and (path / REPAIR_PROMPT_FILENAME).is_file()
+    )
+    if not prompt_versions:
+        raise ValueError(f"No complete prompt versions found in {prompts_directory}")
+    return prompt_versions
+
+
 def load_extraction_prompts(prompts_directory: Path, prompt_version: str) -> ExtractionPrompts:
     prompt_version_directory = prompts_directory / prompt_version
-    system_prompt = (prompt_version_directory / "system.txt").read_text(encoding="utf-8")
-    repair_prompt = (prompt_version_directory / "repair.txt").read_text(encoding="utf-8")
+    system_prompt = (prompt_version_directory / SYSTEM_PROMPT_FILENAME).read_text(encoding="utf-8")
+    repair_prompt = (prompt_version_directory / REPAIR_PROMPT_FILENAME).read_text(encoding="utf-8")
 
     return ExtractionPrompts(
         prompt_version=prompt_version,

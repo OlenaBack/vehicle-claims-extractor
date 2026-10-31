@@ -9,8 +9,8 @@ from vehicle_accidents_extractor.evaluation.run_metrics import (
 from vehicle_accidents_extractor.evaluation.accident_extraction_record_reader import (
     read_accident_extraction_records,
 )
+from vehicle_accidents_extractor.evaluation.golden_record_reader import read_golden_records
 from vehicle_accidents_extractor.input_paths import InputPaths
-from vehicle_accidents_extractor.schema import GoldenRecord
 
 
 ROOT = Path(__file__).resolve().parent
@@ -44,11 +44,7 @@ def main() -> None:
         golden_labels_path = args.golden_labels_path or InputPaths(ROOT).golden_labels_path(
             accident_batch
         )
-        golden_records = [
-            GoldenRecord.model_validate_json(line)
-            for line in golden_labels_path.read_text(encoding="utf-8").splitlines()
-            if line.strip()
-        ]
+        golden_records = read_golden_records(golden_labels_path)
         metrics = calculate_run_metrics(extraction_records, golden_records)
     except (OSError, ValueError) as error:
         raise SystemExit(str(error)) from error

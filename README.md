@@ -34,9 +34,10 @@ If Ollama is not reachable, the local run is skipped with a message. Before a lo
 ```powershell
 python main.py                                          # openrouter, prompt v1, deterministic, batch-01
 python main.py --model ollama --prompt v2 --sampling varied
+python main.py --all                                    # every model × prompt × sampling, then a comparison table
 ```
 
-Options: `--model` (`openrouter` or `ollama`), `--prompt` (a folder under `prompts/`), `--sampling` (`deterministic` or `varied`) and `--batch`. Each run writes one JSONL file to `extractions/<batch>/`. The full comparison is 2 models × 2 prompts × 2 sampling profiles = 8 runs.
+Options: `--model` (`openrouter` or `ollama`), `--prompt` (a folder under `prompts/`), `--sampling` (`deterministic` or `varied`) and `--batch`. Each run writes one JSONL file to `extractions/<batch>/`. The full comparison is 2 models × 2 prompts × 2 sampling profiles = 8 runs, which `--all` runs in one command (ignoring `--model`, `--prompt` and `--sampling`) and summarizes in a table of accuracy, first-attempt validity, latency and cost. An unavailable model is skipped with a message.
 
 Evaluate one saved run against the golden labels:
 
@@ -68,8 +69,8 @@ Defined in [`vehicle_accidents_extractor/llm/llm_client.py`](vehicle_accidents_e
 ## Package structure
 
 - [`extraction/`](vehicle_accidents_extractor/extraction/): accident extraction, prompt loading and building, and response validation.
-- [`evaluation/`](vehicle_accidents_extractor/evaluation/): accident scoring and vehicle matching.
-- [`batch/`](vehicle_accidents_extractor/batch/): batch extraction setup and execution, and accident extraction record writing.
+- [`evaluation/`](vehicle_accidents_extractor/evaluation/): accident scoring, vehicle matching, golden label reading and the extraction run comparison.
+- [`batch/`](vehicle_accidents_extractor/batch/): batch extraction setup and execution, extraction setups, one model's extraction session, and accident extraction record writing.
 - [`llm/`](vehicle_accidents_extractor/llm/): model communication, configuration loading and [`config.toml`](vehicle_accidents_extractor/llm/config.toml).
 - [`input_paths.py`](vehicle_accidents_extractor/input_paths.py) and [`artifact_paths.py`](vehicle_accidents_extractor/artifact_paths.py): locations for batch inputs and saved extraction records.
 
@@ -83,10 +84,11 @@ The schema remains at package level. [`main.py`](main.py) connects the component
 flowchart TD
     Main[main entry point] -->|loads| ConfigFile[Config file]
     ConfigFile -->|validated as| Config[Config]
-    Main -->|creates, pings and warms up local model| Client[LLMClient]
-    Main -->|passes config, choices and client| Builder[AccidentBatchExtractorBuilder]
     Main -->|creates and passes| Inputs[InputPaths]
-    Main -->|passes output path resolver| Builder
+    Main -->|passes setups, config and path resolvers| Session[extract_setups_with_model]
+    Session -->|creates, pings and warms up local model| Client[LLMClient]
+    Session -->|passes config, choices and client| Builder[AccidentBatchExtractorBuilder]
+    Session -->|passes output path resolver| Builder
     Builder -->|requests batch input paths| Inputs
     Inputs -->|returns batch input paths and prompt directory| Builder
     Builder -->|loads selected version with| PromptLoader[Prompt loader]
