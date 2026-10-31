@@ -107,7 +107,7 @@ flowchart TD
 
 ```mermaid
 flowchart TD
-    Main[main entry point] -->|extracts the batch| BatchExtractor[AccidentBatchExtractor]
+    Session[extract_setups_with_model] -->|extracts the batch| BatchExtractor[AccidentBatchExtractor]
     BatchExtractor -->|reads each narrative and uses| AccidentExtractor[AccidentExtractor]
     AccidentExtractor -->|returns outcome| BatchExtractor
     BatchExtractor -->|sends accident ID and outcome| Writer[AccidentExtractionRecordWriter]
