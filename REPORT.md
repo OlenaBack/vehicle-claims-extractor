@@ -67,13 +67,14 @@ Computed by `evaluate.py` (`vehicle_accidents_extractor/evaluation/`), following
 - **Cost per 1,000 accidents:** (average input tokens × input price + average output tokens × output price) × 1,000, counting every attempt including repairs. Local API cost is $0.
 - **Token prices:** gpt-4o-mini at $0.15 per 1M input tokens and $0.60 per 1M output tokens (`config.toml`). These prices were verified against OpenRouter's price list on 2026-10-29.
 - **Normalization:** before comparing, strings are trimmed and casefolded; other JSON values (numbers, booleans, `null`) are compared exactly. Lists are scored per item as intersection over union of the normalized items.
+- **Deviations from the normalization in `REQUIREMENTS.md`:** the schema has no dates, so date normalization does not apply. Numbers (`year`, `speed_limit_mph`) are integers and compared exactly. Enum values are fixed by the schema, so casefolding cannot change them and enums are effectively compared exactly, as required.
 - **Vehicle matching:** golden and extracted vehicles are paired independently of list order. First, vehicles with equal non-null labels are paired. The rest are paired to maximize the number of matching fields among label, year, make, model and towed, each vehicle used once; ties are broken by vehicle contents. Each pair scores five fields. A golden vehicle with no counterpart (missed) scores all five as incorrect, and an extra extracted vehicle adds incorrect fields.
 
 ## Local machine
 
 - CPU: Intel Core Ultra 7 165H
 - RAM: 64 GB (63.4 GB usable)
-- GPU: NVIDIA RTX 2000 Ada Laptop GPU (about 4 GB VRAM) and Intel Arc integrated graphics. `ollama ps` in an earlier session showed `llama3.2:3b` (2.6 GB, context 4096) with processor `100% GPU`, so Ollama ran the model fully on the GPU. It was not re-checked during the 24 runs reported here.
+- GPU: NVIDIA RTX 2000 Ada Laptop GPU (about 4 GB VRAM) and Intel Arc integrated graphics. `ollama ps` on this machine on 2026-10-31 showed `llama3.2:3b` (2.6 GB, context 4096) at `100% GPU`, so Ollama runs the model fully on the NVIDIA GPU.
 - Recorded in every run file: `Windows-11 · Intel64 Family 6 Model 170 Stepping 4, GenuineIntel · 22 logical CPUs`.
 - OS: Windows, x64
 - Ollama 0.40.11, model `llama3.2:3b` (Q4_K_M, about 2 GB)
@@ -107,7 +108,7 @@ Only the gpt-4o-mini gains (accuracy in both profiles, and lighting) are clearly
 
 ## Production choice
 
-Use `gpt-4o-mini` with prompt v2 and deterministic sampling. It has the highest mean accuracy (93.7%, range 93.3–93.9), is valid on the first attempt for every narrative, and costs about $0.44 per 1,000 accidents. Its latency is better than the local model on this laptop (p50 about 2.1 s against about 2.7 s, p95 3.4 s against 5.5 s), where Ollama ran fully on the NVIDIA GPU in an earlier session; on a CPU-only machine the local model would be much slower. `llama3.2:3b` reaches only 63–69% accuracy across all runs, makes factual errors on the Swedish narratives, and needed repair for 20% of responses; 3 responses stayed invalid after repair (all in v1 varied). The varied v2 profile is within noise of the deterministic one (92.9% mean against 93.7%), but deterministic is more stable (spread 0.6 points against 1.1).
+Use `gpt-4o-mini` with prompt v2 and deterministic sampling. It has the highest mean accuracy (93.7%, range 93.3–93.9), is valid on the first attempt for every narrative, and costs about $0.44 per 1,000 accidents. Its latency is better than the local model on this laptop (p50 about 2.1 s against about 2.7 s, p95 3.4 s against 5.5 s), where Ollama ran fully on the NVIDIA GPU (verified with `ollama ps`); on a CPU-only machine the local model would be much slower. `llama3.2:3b` reaches only 63–69% accuracy across all runs, makes factual errors on the Swedish narratives, and needed repair for 20% of responses; 3 responses stayed invalid after repair (all in v1 varied). The varied v2 profile is within noise of the deterministic one (92.9% mean against 93.7%), but deterministic is more stable (spread 0.6 points against 1.1).
 
 The weakest field of the chosen setup is `injuries_reported` (about 62% correct over the golden set): the model fills in `true` or `false` where the golden value is `null`. Results for it need a human check, or a further prompt revision tested on the same golden set.
 
@@ -115,3 +116,34 @@ This choice would change if:
 - the narratives cannot leave the company network (privacy or contract), which makes a local model necessary. The next step would then be to test a larger local model, since the 3B model is too weak;
 - volume grows so far that API cost outweighs the cost of running local hardware, or the provider changes its prices;
 - a larger golden set shows a different ranking. With 10 golden narratives the gap between the models is large enough to be reliable, but differences between prompts and sampling profiles are not.
+
+## Appendix: all 24 runs
+
+One row per extraction run, computed by `evaluate.py` from the files in `extractions/batch-01/` (the run ID is the start of each file's run ID).
+
+| # | Model | Prompt | Sampling | Run ID | Accuracy | Valid 1st | Valid after repair | p50 | p95 | Cost / 1,000 | unknown_usage_calls | documents_with_unknown_usage |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| 1 | gpt-4o-mini | v1 | deterministic | `347025ea` | 90.5% (162/179) | 100% | 100% | 2.05 s | 3.46 s | $0.425 | 0 | 0 |
+| 2 | gpt-4o-mini | v1 | deterministic | `dbfcf349` | 91.1% (163/179) | 100% | 100% | 2.00 s | 2.85 s | $0.424 | 0 | 0 |
+| 3 | gpt-4o-mini | v1 | deterministic | `5ed2b9e8` | 89.4% (160/179) | 100% | 100% | 2.04 s | 2.75 s | $0.425 | 0 | 0 |
+| 4 | gpt-4o-mini | v1 | varied | `18f7bbcb` | 90.5% (162/179) | 100% | 100% | 1.96 s | 2.87 s | $0.424 | 0 | 0 |
+| 5 | gpt-4o-mini | v1 | varied | `254fe6d2` | 90.5% (162/179) | 100% | 100% | 2.04 s | 2.96 s | $0.423 | 0 | 0 |
+| 6 | gpt-4o-mini | v1 | varied | `940bf317` | 89.9% (161/179) | 100% | 100% | 1.92 s | 2.59 s | $0.423 | 0 | 0 |
+| 7 | gpt-4o-mini | v2 | deterministic | `bb909ffe` | 93.9% (168/179) | 100% | 100% | 2.23 s | 3.26 s | $0.436 | 0 | 0 |
+| 8 | gpt-4o-mini | v2 | deterministic | `52808317` | 93.9% (168/179) | 100% | 100% | 2.05 s | 3.61 s | $0.436 | 0 | 0 |
+| 9 | gpt-4o-mini | v2 | deterministic | `92b0866a` | 93.3% (167/179) | 100% | 100% | 1.88 s | 3.17 s | $0.436 | 0 | 0 |
+| 10 | gpt-4o-mini | v2 | varied | `c8baafad` | 92.2% (165/179) | 100% | 100% | 2.20 s | 3.13 s | $0.436 | 0 | 0 |
+| 11 | gpt-4o-mini | v2 | varied | `e8c8b5c1` | 93.3% (167/179) | 100% | 100% | 2.02 s | 2.84 s | $0.435 | 0 | 0 |
+| 12 | gpt-4o-mini | v2 | varied | `f0524db6` | 93.3% (166/178) | 100% | 100% | 2.13 s | 2.73 s | $0.436 | 0 | 0 |
+| 13 | llama3.2:3b | v1 | deterministic | `da274886` | 65.2% (122/187) | 80% | 100% | 3.07 s | 6.40 s | $0.000 | 0 | 0 |
+| 14 | llama3.2:3b | v1 | deterministic | `cc21ed73` | 65.2% (122/187) | 80% | 100% | 2.38 s | 5.33 s | $0.000 | 0 | 0 |
+| 15 | llama3.2:3b | v1 | deterministic | `98673d26` | 65.6% (122/186) | 80% | 100% | 2.34 s | 5.18 s | $0.000 | 0 | 0 |
+| 16 | llama3.2:3b | v1 | varied | `d43b8d0d` | 63.7% (116/182) | 73% | 93% | 2.74 s | 6.07 s | $0.000 | 0 | 0 |
+| 17 | llama3.2:3b | v1 | varied | `34360055` | 69.2% (126/182) | 87% | 97% | 2.41 s | 4.95 s | $0.000 | 0 | 0 |
+| 18 | llama3.2:3b | v1 | varied | `8e579055` | 65.4% (121/185) | 73% | 100% | 2.61 s | 5.34 s | $0.000 | 0 | 0 |
+| 19 | llama3.2:3b | v2 | deterministic | `6df91e92` | 68.5% (124/181) | 80% | 100% | 2.85 s | 6.08 s | $0.000 | 0 | 0 |
+| 20 | llama3.2:3b | v2 | deterministic | `9725a743` | 68.5% (124/181) | 80% | 100% | 2.63 s | 5.26 s | $0.000 | 0 | 0 |
+| 21 | llama3.2:3b | v2 | deterministic | `6522d17f` | 66.9% (121/181) | 80% | 100% | 2.51 s | 5.17 s | $0.000 | 0 | 0 |
+| 22 | llama3.2:3b | v2 | varied | `f1034ea2` | 66.1% (123/186) | 77% | 100% | 2.85 s | 6.13 s | $0.000 | 0 | 0 |
+| 23 | llama3.2:3b | v2 | varied | `dc61f45d` | 63.0% (119/189) | 87% | 100% | 2.48 s | 5.00 s | $0.000 | 0 | 0 |
+| 24 | llama3.2:3b | v2 | varied | `19faea17` | 66.7% (122/183) | 83% | 100% | 2.51 s | 4.97 s | $0.000 | 0 | 0 |
