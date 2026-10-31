@@ -35,6 +35,7 @@ class ExtractionRunMetadata(BaseModel):
     max_retries: int
     max_tokens: int
     price_per_1m: tuple[float, float]  # USD per 1M tokens: (input, output)
+    machine: str = "unknown"  # default keeps runs saved before this field loadable
 
 
 class AccidentExtractionRecord(BaseModel):

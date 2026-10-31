@@ -1,6 +1,8 @@
 """Build and extract all accident narratives in one batch."""
 
 from datetime import datetime, timezone
+import os
+import platform
 from pathlib import Path
 from uuid import uuid4
 
@@ -110,6 +112,10 @@ class AccidentBatchExtractorBuilder:
             max_retries=self._config.max_retries,
             max_tokens=self._config.max_tokens,
             price_per_1m=model_config.price_per_1m,
+            machine=(
+                f"{platform.system()}-{platform.release()} · {platform.processor()} · "
+                f"{os.cpu_count()} logical CPUs"
+            ),
         )
         extraction_run_records_path = self._artifact_paths.extraction_run_records_path(run_metadata)
         accident_extractor = AccidentExtractor(

@@ -53,6 +53,7 @@ def main() -> None:
     except (OSError, ValueError) as error:
         raise SystemExit(str(error)) from error
 
+    print(f"Machine: {extraction_records[0].run_metadata.machine}")
     print(f"Accidents: {metrics.accident_count}")
     print(f"Golden accidents: {metrics.golden_accident_count}")
     print(
