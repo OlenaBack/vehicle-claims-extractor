@@ -21,7 +21,7 @@ Keep supporting models, schema, LLM client interface, and tests. Use a fake LLM 
 
 - Coding skill candidate: `feature-dev`. **Exact source and revision: pending verification.**
 - Glossary skill candidate: `domain-modeling`. **Exact source, revision, and limitations: pending verification.**
-- Coding model choice: **Claude Sonnet**. **Exact available model ID/version: pending verification in the intended coding environment.** Do not treat an unverified model identifier as pinned.
+- Coding model selection: **Claude Sonnet 5.5**, model ID `claude-sonnet-5-5` (verified in Anthropic documentation, 2026-11-01). Confirm this ID is available in the actual Claude Code environment before the experiment. Use the same model and effort setting for both runs. Source: https://platform.claude.com/docs/en/models/sonnet-5-5/overview
 - The baseline and decorated runs must use identical skill instructions and model versions. The decorated run adds only frozen Clear Takeoff rules.
 
 ## Controls and open preparation work
