@@ -34,10 +34,10 @@ If Ollama is not reachable, the local run is skipped with a message. Before a lo
 ```powershell
 python main.py                                          # openrouter, prompt v1, deterministic, batch-01
 python main.py --model ollama --prompt v2 --sampling varied
-python main.py --all                                    # every model × prompt × sampling, then a comparison table
+python main.py --all                                    # every model profile × extraction setup, then a run comparison
 ```
 
-Options: `--model` (`openrouter` or `ollama`), `--prompt` (a folder under `prompts/`), `--sampling` (`deterministic` or `varied`) and `--batch`. Each run writes one JSONL file to `extractions/<batch>/`. The full comparison is 2 models × 2 prompts × 2 sampling profiles = 8 runs, which `--all` runs in one command (ignoring `--model`, `--prompt` and `--sampling`) and summarizes in a table of accuracy, first-attempt validity, latency and cost. An unavailable model is skipped with a message.
+Options: `--model` (`openrouter` or `ollama`), `--prompt` (a folder under `prompts/`), `--sampling` (`deterministic` or `varied`) and `--batch`. Each extraction run writes one JSONL file to `extractions/<batch>/`. The full extraction run comparison is 2 models × 2 prompts × 2 sampling profiles = 8 runs, which `--all` runs in one command (ignoring `--model`, `--prompt` and `--sampling`) and summarizes in a Markdown table with accuracy, first and final validity, latency percentiles, cost, unknown-usage counts and the lower-bound cost flag. An unavailable model is skipped with a message.
 
 Evaluate one saved run against the golden labels:
 
@@ -70,7 +70,7 @@ Defined in [`vehicle_accidents_extractor/llm/llm_client.py`](vehicle_accidents_e
 
 - [`extraction/`](vehicle_accidents_extractor/extraction/): accident extraction, prompt loading and building, and response validation.
 - [`evaluation/`](vehicle_accidents_extractor/evaluation/): accident scoring, vehicle matching, golden label reading and the extraction run comparison.
-- [`batch/`](vehicle_accidents_extractor/batch/): batch extraction setup and execution, extraction setups, one model's extraction session, and accident extraction record writing.
+- [`batch/`](vehicle_accidents_extractor/batch/): model sessions, batch extraction setup and execution, extraction setups, and accident extraction record writing.
 - [`llm/`](vehicle_accidents_extractor/llm/): model communication, configuration loading and [`config.toml`](vehicle_accidents_extractor/llm/config.toml).
 - [`input_paths.py`](vehicle_accidents_extractor/input_paths.py) and [`artifact_paths.py`](vehicle_accidents_extractor/artifact_paths.py): locations for batch inputs and saved extraction records.
 
@@ -78,42 +78,47 @@ The schema remains at package level. [`main.py`](main.py) connects the component
 
 ## Extraction and evaluation flow
 
-### Build an extraction run
+The numbered diagrams follow a batch extraction from setup to saved records. Diagrams 3a and 3b expand the per-narrative work inside diagram 3; evaluating one extraction run and comparing several are separate ways to inspect the saved records.
+
+### 1. Prepare a model session
 
 ```mermaid
 flowchart TD
-    Main[main entry point] -->|loads| ConfigFile[Config file]
-    ConfigFile -->|validated as| Config[Config]
-    Main -->|creates and passes| Inputs[InputPaths]
-    Main -->|passes setups, config and path resolvers| Session[extract_setups_with_model]
-    Session -->|creates, pings and warms up local model| Client[LLMClient]
-    Session -->|passes config, choices and client| Builder[AccidentBatchExtractorBuilder]
-    Session -->|passes output path resolver| Builder
-    Builder -->|requests batch input paths| Inputs
-    Inputs -->|returns batch input paths and prompt directory| Builder
-    Builder -->|loads selected version with| PromptLoader[Prompt loader]
-    PromptFiles[Prompt files] -->|read by| PromptLoader
-    PromptLoader -->|returns| Prompts[ExtractionPrompts]
-    Prompts -->|system and repair text| PromptBuilder[PromptBuilder]
-    Builder -->|creates| PromptBuilder
-    Builder -->|uses run metadata| ArtifactPaths[ArtifactPaths]
-    ArtifactPaths -->|returns extraction run records path| Builder
-    Builder -->|builds| BatchExtractor[AccidentBatchExtractor]
-    Builder -->|creates with client| AccidentExtractor[AccidentExtractor]
-    Builder -->|creates| Validator[ResponseValidator]
+    Main[main.py] -->|selects model profile and extraction setups| Session[extract_setups_with_model]
+    Main -->|loads| ConfigFile
+    ConfigFile[config.toml] -->|parsed and validated| Config[Config with model and sampling profiles]
+    Config -->|selected ModelConfig| Session
+    Session -->|creates client and pings endpoint| Client[LLMClient for selected model]
+    Session -->|creates once, then reuses across extraction setups| ModelSession[Model session: model profile, ModelConfig, LLMClient]
+    Client -->|connection paired with profile settings| ModelSession
 ```
 
-### Process an accident batch
+### 2. Build an extractor for one extraction setup
 
 ```mermaid
 flowchart TD
-    Session[extract_setups_with_model] -->|extracts the batch| BatchExtractor[AccidentBatchExtractor]
-    BatchExtractor -->|reads each narrative and uses| AccidentExtractor[AccidentExtractor]
-    AccidentExtractor -->|returns outcome| BatchExtractor
-    BatchExtractor -->|sends accident ID and outcome| Writer[AccidentExtractionRecordWriter]
+    Session[extract_setups_with_model] -->|builds once per extraction setup| Builder[AccidentBatchExtractorBuilder]
+    Config[Validated Config] -->|selected model and sampling settings| Builder
+    Inputs[InputPaths] -->|accident narrative paths and prompt directory| Builder
+    Builder -->|requests a path for extraction run metadata| Artifacts[ArtifactPaths]
+    Artifacts -->|returns extraction run records path| Builder
+    ModelSession[Model session: model profile, ModelConfig, LLMClient] -->|consistent model choice| Builder
+    Builder -->|creates| AccidentExtractor[AccidentExtractor with prompts and validator]
+    Builder -->|returns extractor, run metadata and records path| BatchExtractor[AccidentBatchExtractor]
 ```
 
-### Extract and validate one accident narrative
+### 3. Batch extraction
+
+```mermaid
+flowchart TD
+    BatchExtractor[AccidentBatchExtractor.extract] -->|reads each selected narrative path| Narrative[Accident narrative text]
+    BatchExtractor -->|calls once per accident narrative| AccidentExtractor[AccidentExtractor]
+    Narrative -->|extraction input| AccidentExtractor
+    AccidentExtractor -->|returns AccidentExtractionOutcome| BatchExtractor
+    BatchExtractor -->|writes accident ID and outcome| Writer[AccidentExtractionRecordWriter]
+```
+
+### 3a. Extract and validate one accident narrative
 
 ```mermaid
 flowchart TD
@@ -131,7 +136,7 @@ flowchart TD
     Extractor -->|valid, repaired, or failed| Outcome[AccidentExtractionOutcome]
 ```
 
-### Save accident extraction records
+### 3b. Save one accident extraction record
 
 ```mermaid
 flowchart TD
@@ -141,7 +146,7 @@ flowchart TD
     Record -->|writes one JSONL line| JSONL[Saved extraction run]
 ```
 
-### Evaluate a saved extraction run
+### 4. Evaluate one saved extraction run
 
 ```mermaid
 flowchart TD
@@ -154,4 +159,24 @@ flowchart TD
     GoldenFile -->|validated as| Golden[GoldenRecord entries]
     Evaluate -->|passes records and labels| Metrics[Run metrics]
     Metrics --> Scores[Accuracy validity latency cost]
+```
+
+### 5. Compare extraction runs after `--all`
+
+```mermaid
+flowchart TD
+    Main[main.py] -->|runs each model profile and extraction setup| Session[extract_setups_with_model]
+    Session -->|returns extraction run paths| Main
+    Session -->|writes one JSONL file per extraction run| JSONL[Saved extraction runs]
+    Main -->|reads golden labels for the batch| GoldenFile[Golden labels file]
+    GoldenFile -->|validated as| Golden[GoldenRecord entries]
+    Main -->|passes saved paths and golden labels| Comparison[format_extraction_run_comparison]
+    Comparison -->|reads each path with| Reader[read_accident_extraction_records]
+    JSONL -->|record source| Reader
+    Reader -->|returns records for one run| Comparison
+    Comparison -->|scores one run at a time| Metrics[calculate_run_metrics]
+    Golden -->|golden labels| Metrics
+    Metrics -->|accuracy, validity, latency and cost| Comparison
+    Comparison -->|returns one Markdown row per extraction run| Main
+    Main -->|prints| Table[Extraction run comparison]
 ```
