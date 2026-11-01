@@ -15,7 +15,7 @@ pip install -r requirements.txt
 copy .env.example .env
 ```
 
-Put your OpenRouter key in `.env` as `OPENROUTER_API_KEY`. `.env` is not committed. Without a key, the provider run is skipped with a message.
+Put your OpenRouter key in `.env` as `OPENROUTER_API_KEY`. `.env` is not committed. Without a key, a single run fails with a message; `--all` skips that LLM and continues.
 
 ### Local model (Ollama)
 
@@ -27,7 +27,7 @@ Put your OpenRouter key in `.env` as `OPENROUTER_API_KEY`. `.env` is not committ
    ollama pull llama3.2:3b
    ```
 
-If Ollama is not reachable, the local run is skipped with a message. Before a local run, one small unrecorded request loads the model, so model loading time is not part of the measured latency.
+If Ollama is not reachable, a single run fails with a message; `--all` skips that LLM and continues. Before a local run, one small unrecorded request loads the model, so model loading time is not part of the measured latency.
 
 ## Run
 
@@ -37,7 +37,7 @@ python main.py --model ollama --prompt v2 --sampling varied
 python main.py --all                                    # every model × prompt × sampling, then a comparison table
 ```
 
-Options: `--model` (`openrouter` or `ollama`), `--prompt` (a folder under `prompts/`), `--sampling` (`deterministic` or `varied`) and `--batch`. Each run writes one JSONL file to `extractions/<batch>/`. The full comparison is 2 models × 2 prompts × 2 sampling profiles = 8 runs, which `--all` runs in one command (ignoring `--model`, `--prompt` and `--sampling`) and summarizes in a table of accuracy, first-attempt validity, latency and cost. An unavailable model is skipped with a message.
+Options: `--model` (`openrouter` or `ollama`), `--prompt` (a folder under `prompts/`), `--sampling` (`deterministic` or `varied`) and `--batch`. Each run writes one JSONL file to `extractions/<batch>/`. The full comparison is 2 models × 2 prompts × 2 sampling profiles = 8 runs, which `--all` runs in one command (ignoring `--model`, `--prompt` and `--sampling`) and summarizes in a table of accuracy, first-attempt validity, latency and cost. With `--all`, an unavailable LLM is skipped with a message, and extraction runs already saved are kept.
 
 Evaluate one saved run against the golden labels:
 

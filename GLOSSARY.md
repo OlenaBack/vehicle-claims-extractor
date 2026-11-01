@@ -24,11 +24,19 @@ _Avoid_: test set
 The human-prepared structured accident facts for one narrative in the golden set.
 _Avoid_: expected output, answer key
 
+**LLM profile**:
+A named configuration that selects one LLM: its endpoint, API key variable, model ID and price per 1M tokens, such as `openrouter` or `ollama`. Saved extraction runs store it under the key `model_profile`.
+_Avoid_: model, model profile (the model ID is only one part of a profile)
+
+**Sampling profile**:
+A named pair of temperature and top_p used for every LLM call in a batch extraction, such as `deterministic` or `varied`.
+_Avoid_: sampling config
+
 **Batch extraction**:
-Processing accident narratives in a batch using one model profile and one extraction setup.
+Processing accident narratives in a batch using one LLM profile and one extraction setup.
 
 **Extraction setup**:
-A prompt version combined with a sampling profile. A batch extraction applies one setup to one model profile.
+A prompt version combined with a sampling profile. A batch extraction applies one setup to one LLM profile.
 _Avoid_: configuration, experiment
 
 **Extraction run**:
