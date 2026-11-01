@@ -1,10 +1,10 @@
 # Comparison report: vehicle accident extraction
 
-Extracts structured data from 30 accident narratives (English, Swedish or mixed). Quality is measured on the 10 narratives in the golden set. Two models, two prompt versions and two sampling profiles give 8 runs.
+Extracts structured data from 30 accident narratives (English, Swedish or mixed). Quality is measured on the 10 narratives in the golden set. Two models, two prompt versions and two sampling profiles give 8 combinations.
 
 - Provider model: `openai/gpt-4o-mini` through OpenRouter.
 - Local model: `llama3.2:3b` through Ollama.
-- Every run used the final extraction behavior: prompts, schema, validation, retries and local warm-up. Later commits only renamed code and changed reporting. Each of the 8 setups was run 3 times (24 runs). Tables show the mean with the range (min–max) over the 3 runs.
+- Every run used the final extraction behavior: prompts, schema, validation, retries and local warm-up. Later commits only renamed code and changed reporting. Each of the 8 combinations was run 3 times (24 runs). Tables show the mean with the range (min–max) over the 3 runs.
 
 ## Results
 
@@ -27,7 +27,7 @@ No request timed out or returned an API error in any of the 24 runs, and the slo
 
 Per-field scores on the three fields prompt v2 targeted (correct/total over the golden set, one value per run):
 
-| Setup | lighting | weather | injuries_reported |
+| Combination | lighting | weather | injuries_reported |
 | --- | --- | --- | --- |
 | gpt-4o-mini v1 deterministic | 7/10, 7/10, 7/10 | 9/13, 9/13, 8/13 | 5/10, 6/10, 4/10 |
 | gpt-4o-mini v1 varied | 7/10, 7/10, 7/10 | 8/13, 8/13, 8/13 | 6/10, 6/10, 6/10 |
@@ -85,7 +85,7 @@ Computed by `evaluate.py` (`vehicle_accidents_extractor/evaluation/`), following
 ## Limitations
 
 - Only 10 narratives in the golden set: one wrong field moves accuracy by roughly 0.5 points overall and by 10 points on a single-valued field. Differences of a few points are within noise.
-- Each setup was run 3 times. The ranges above measure run-to-run noise: gpt-4o-mini varies by 0.6–1.7 points, llama3.2:3b by up to 5.5 points (v1 varied: 63.7–69.2%), and deterministic llama3.2:3b runs are almost identical (0.4 and 1.7 points). Three runs give only a rough range, not a confidence interval. Conclusions about sampling are weak.
+- Each combination was run 3 times. The ranges above measure run-to-run noise: gpt-4o-mini varies by 0.6–1.7 points, llama3.2:3b by up to 5.5 points (v1 varied: 63.7–69.2%), and deterministic llama3.2:3b runs are almost identical (0.4 and 1.7 points). Three runs give only a rough range, not a confidence interval. Conclusions about sampling are weak.
 - All 24 runs were made on the same day (2026-10-31, 06:57–07:33 UTC), on one machine and one network, one after another. The ranges show repeatability in that environment, not variation across days, API load or hardware. No run had a timeout, so this data says nothing about the local model's stability over long periods.
 
 ## Error analysis
@@ -111,9 +111,7 @@ Only the gpt-4o-mini gains (accuracy in both profiles, and lighting) are clearly
 
 ## Production choice
 
-Use `gpt-4o-mini` with prompt v2 and deterministic sampling. It has the highest mean accuracy (93.7%, range 93.3–93.9), is valid on the first attempt for every narrative, and costs about $0.44 per 1,000 accidents. Its latency is better than the local model on this laptop (p50 about 2.1 s against about 2.7 s, p95 3.4 s against 5.5 s), where Ollama ran fully on the NVIDIA GPU (verified with `ollama ps`); on a CPU-only machine the local model would be much slower. `llama3.2:3b` reaches only 63–69% accuracy across all runs, makes factual errors on the Swedish narratives, and needed repair for 20% of responses; 3 responses stayed invalid after repair (all in v1 varied). The varied v2 profile is within noise of the deterministic one (92.9% mean against 93.7%), but deterministic is more stable (spread 0.6 points against 1.1).
-
-The weakest field of the chosen setup is `injuries_reported` (about 62% correct over the golden set): the model fills in `true` or `false` where the golden value is `null`. Results for it need a human check, or a further prompt revision tested on the same golden set.
+Use `gpt-4o-mini` with prompt v2 and deterministic sampling. It has the highest mean accuracy (93.7%, range 93.3–93.9), is valid on the first attempt for every narrative, and costs about $0.44 per 1,000 accidents. Its latency is better than the local model on this laptop (p50 about 2.1 s against about 2.7 s, p95 3.4 s against 5.5 s), where Ollama ran fully on the NVIDIA GPU (verified with `ollama ps`); on a CPU-only machine the local model would be much slower. `llama3.2:3b` reaches only 63–69% accuracy across all runs, makes factual errors on the Swedish narratives, and needed repair for 20% of responses; 3 responses stayed invalid after repair (all in v1 varied). The varied v2 profile is within noise of the deterministic one (92.9% mean against 93.7%), but deterministic is more stable (spread 0.6 points against 1.1). The weakest field is `injuries_reported` (about 62% correct over the golden set): the model fills in `true` or `false` where the golden value is `null`, so those results need a human check or a prompt revision tested on the same golden set.
 
 This choice would change if:
 - the narratives cannot leave the company network (privacy or contract), which makes a local model necessary. The next step would then be to test a larger local model, since the 3B model is too weak;
@@ -122,7 +120,7 @@ This choice would change if:
 
 ## Next step: checking extractions with an LLM judge
 
-Most errors of the chosen setup fill in a value the text doesn't state, such as `injuries_reported`, or earlier rain counted as current weather. The golden labels catch this for only 10 of the 30 narratives.
+Most errors of the chosen combination fill in a value the text doesn't state, such as `injuries_reported`, or earlier rain counted as current weather. The golden labels catch this for only 10 of the 30 narratives.
 
 A second LLM could check each extraction against its narrative. For every field it answers `supported`, `contradicted` or `not stated`, and quotes the text as evidence.
 
