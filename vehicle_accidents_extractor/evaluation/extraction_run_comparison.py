@@ -25,7 +25,7 @@ def format_extraction_run_comparison(
         run_metadata = records[0].run_metadata
         rows.append(
             f"{run_metadata.model:<24}{run_metadata.prompt_version:<8}"
-            f"{run_metadata.sampling_profile:<15}"
+            f"{run_metadata.sampling_profile_name:<15}"
             f"{metrics.accuracy:>9.1%}{metrics.first_attempt_validity:>10.1%}"
             f"{metrics.final_validity:>12.1%}"
             f"{metrics.latency_p50_seconds:>8.2f}{metrics.latency_p95_seconds:>8.2f}"

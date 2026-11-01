@@ -19,7 +19,7 @@ class ExtractionRunMetadata(BaseModel):
     started_at: datetime
     batch: str
 
-    llm_profile: str = Field(alias="model_profile")
+    llm_profile_name: str = Field(alias="model_profile")
     model: str
     base_url: str
 
@@ -27,7 +27,7 @@ class ExtractionRunMetadata(BaseModel):
     system_hash: str
     repair_hash: str
 
-    sampling_profile: str
+    sampling_profile_name: str = Field(alias="sampling_profile")
     temperature: float
     top_p: float
 

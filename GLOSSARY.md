@@ -25,12 +25,15 @@ The human-prepared structured accident facts for one narrative in the golden set
 _Avoid_: expected output, answer key
 
 **LLM profile**:
-A named configuration that selects one LLM: its endpoint, API key variable, model ID and price per 1M tokens, such as `openrouter` or `ollama`. The CLI selects it with `--llm-profile`; code calls its name `llm_profile` and its settings `llm_config`. Saved extraction runs store it under the key `model_profile`.
+One `[llm_profiles.*]` section in `llm_config.toml`, such as `openrouter`. It holds the endpoint, API key variable, model ID and price per 1M tokens, and is used to create an `LLMClient`. The CLI selects it with `--llm-profile`; code calls its name `llm_profile_name` and its settings `llm_profile`. Saved extraction runs store its name under the key `model_profile`.
 _Avoid_: model, model profile (the model ID is only one part of a profile)
 
 **Sampling profile**:
-A named pair of temperature and top_p used for every LLM call in a batch extraction, such as `deterministic` or `varied`.
+One `[sampling_profiles.*]` section in `llm_config.toml`, such as `varied`. It holds the temperature and top_p sent with every LLM call in a batch extraction.
 _Avoid_: sampling config
+
+**Model ID**:
+The provider's name for an LLM, such as `openai/gpt-4o-mini`.
 
 **Batch extraction**:
 Processing accident narratives in a batch using one LLM profile and one extraction setup.

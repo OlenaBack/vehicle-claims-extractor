@@ -13,7 +13,7 @@ from ..extraction.prompt_loader import load_extraction_prompts
 from ..extraction.response_validator import ResponseValidator
 from ..extraction_run_records import ExtractionRunMetadata
 from ..input_paths import InputPaths
-from ..llm.config import Config
+from ..llm.llm_config import LLMConfig
 from ..llm.llm_client import LLMClient
 from ..schema import VehicleAccident
 from .accident_extraction_record_writer import AccidentExtractionRecordWriter
@@ -46,22 +46,22 @@ class AccidentBatchExtractor:
 
 
 class AccidentBatchExtractorBuilder:
-    def __init__(self, config: Config, input_paths: InputPaths):
-        self._config = config
+    def __init__(self, llm_config: LLMConfig, input_paths: InputPaths):
+        self._llm_config = llm_config
         self._input_paths = input_paths
         self._artifact_paths: ArtifactPaths | None = None
         self._accident_batch: str | None = None
-        self._llm_profile: str | None = None
+        self._llm_profile_name: str | None = None
         self._llm_client: LLMClient | None = None
         self._prompt_version: str | None = None
-        self._sampling_profile: str | None = None
+        self._sampling_profile_name: str | None = None
 
     def for_accident_batch(self, accident_batch: str) -> "AccidentBatchExtractorBuilder":
         self._accident_batch = accident_batch
         return self
 
-    def with_llm_profile(self, llm_profile: str) -> "AccidentBatchExtractorBuilder":
-        self._llm_profile = llm_profile
+    def with_llm_profile(self, llm_profile_name: str) -> "AccidentBatchExtractorBuilder":
+        self._llm_profile_name = llm_profile_name
         return self
 
     def with_llm_client(self, llm_client: LLMClient) -> "AccidentBatchExtractorBuilder":
@@ -73,8 +73,8 @@ class AccidentBatchExtractorBuilder:
         self._prompt_version = prompt_version
         return self
 
-    def with_sampling_profile(self, sampling_profile: str) -> "AccidentBatchExtractorBuilder":
-        self._sampling_profile = sampling_profile
+    def with_sampling_profile(self, sampling_profile_name: str) -> "AccidentBatchExtractorBuilder":
+        self._sampling_profile_name = sampling_profile_name
         return self
 
     def saving_records_to(self, artifact_paths: ArtifactPaths) -> "AccidentBatchExtractorBuilder":
@@ -83,35 +83,35 @@ class AccidentBatchExtractorBuilder:
 
     def build(self) -> AccidentBatchExtractor:
         accident_batch = self._required(self._accident_batch, "accident batch")
-        llm_profile = self._required(self._llm_profile, "LLM profile")
+        llm_profile_name = self._required(self._llm_profile_name, "LLM profile")
         prompt_version = self._required(self._prompt_version, "prompt version")
-        sampling_profile = self._required(self._sampling_profile, "sampling profile")
+        sampling_profile_name = self._required(self._sampling_profile_name, "sampling profile")
         if self._artifact_paths is None:
             raise ValueError("Artifact paths are required to build an accident batch extractor")
         if self._llm_client is None:
             raise ValueError("An LLM client is required to build an accident batch extractor")
 
-        llm_config = self._config.get_llm_config(llm_profile)
-        sampling = self._config.get_sampling(sampling_profile)
+        llm_profile = self._llm_config.get_llm_profile(llm_profile_name)
+        sampling_profile = self._llm_config.get_sampling_profile(sampling_profile_name)
         prompts = load_extraction_prompts(self._input_paths.prompts_directory, prompt_version)
         narrative_paths = self._input_paths.accident_narrative_paths(accident_batch)
         run_metadata = ExtractionRunMetadata(
             run_id=uuid4().hex,
             started_at=datetime.now(timezone.utc),
             batch=accident_batch,
-            llm_profile=llm_profile,
-            model=llm_config.model,
-            base_url=llm_config.base_url,
+            llm_profile_name=llm_profile_name,
+            model=llm_profile.model,
+            base_url=llm_profile.base_url,
             prompt_version=prompts.prompt_version,
             system_hash=prompts.system_hash,
             repair_hash=prompts.repair_hash,
-            sampling_profile=sampling_profile,
-            temperature=sampling.temperature,
-            top_p=sampling.top_p,
-            timeout_seconds=self._config.timeout_seconds,
-            max_retries=self._config.max_retries,
-            max_tokens=self._config.max_tokens,
-            price_per_1m=llm_config.price_per_1m,
+            sampling_profile_name=sampling_profile_name,
+            temperature=sampling_profile.temperature,
+            top_p=sampling_profile.top_p,
+            timeout_seconds=self._llm_config.timeout_seconds,
+            max_retries=self._llm_config.max_retries,
+            max_tokens=self._llm_config.max_tokens,
+            price_per_1m=llm_profile.price_per_1m,
             machine=(
                 f"{platform.system()}-{platform.release()} · {platform.processor()} · "
                 f"{os.cpu_count()} logical CPUs"
@@ -122,8 +122,8 @@ class AccidentBatchExtractorBuilder:
             self._llm_client,
             PromptBuilder(prompts.system_prompt, prompts.repair_prompt),
             ResponseValidator(VehicleAccident),
-            sampling,
-            self._config.max_tokens,
+            sampling_profile,
+            self._llm_config.max_tokens,
         )
         return AccidentBatchExtractor(
             accident_extractor,

@@ -6,15 +6,15 @@ from dataclasses import dataclass
 @dataclass(frozen=True)
 class ExtractionSetup:
     prompt_version: str
-    sampling_profile: str
+    sampling_profile_name: str
 
 
 def extraction_setups(
-    prompt_versions: list[str], sampling_profiles: list[str],
+    prompt_versions: list[str], sampling_profile_names: list[str],
 ) -> list[ExtractionSetup]:
     """Every combination of prompt version and sampling profile, ordered by prompt version."""
     return [
-        ExtractionSetup(prompt_version, sampling_profile)
+        ExtractionSetup(prompt_version, sampling_profile_name)
         for prompt_version in prompt_versions
-        for sampling_profile in sampling_profiles
+        for sampling_profile_name in sampling_profile_names
     ]

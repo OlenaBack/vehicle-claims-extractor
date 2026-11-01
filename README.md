@@ -21,7 +21,7 @@ Put your OpenRouter key in `.env` as `OPENROUTER_API_KEY`. `.env` is not committ
 
 1. Install Ollama from <https://ollama.com/download>.
 2. Start the server. The Windows app starts it automatically; otherwise run `ollama serve`. It listens on `http://localhost:11434`.
-3. Pull the model named in [`config.toml`](vehicle_accidents_extractor/llm/config.toml) (about 2 GB):
+3. Pull the model named in [`llm_config.toml`](vehicle_accidents_extractor/llm/llm_config.toml) (about 2 GB):
 
    ```powershell
    ollama pull llama3.2:3b
@@ -33,11 +33,11 @@ If Ollama is not reachable, a single run fails with a message; `--all` skips tha
 
 ```powershell
 python main.py                                          # openrouter, prompt v1, deterministic, batch-01
-python main.py --llm-profile ollama --prompt v2 --sampling varied
-python main.py --all                                    # every LLM profile × prompt × sampling, then a comparison table
+python main.py --llm-profile ollama --prompt v2 --sampling-profile varied
+python main.py --all                                    # every LLM profile × prompt × sampling profile, then a comparison table
 ```
 
-Options: `--llm-profile` (`openrouter` or `ollama`), `--prompt` (a folder under `prompts/`), `--sampling` (`deterministic` or `varied`) and `--batch`. Each run writes one JSONL file to `extractions/<batch>/`. The full comparison is 2 LLM profiles × 2 prompts × 2 sampling profiles = 8 runs, which `--all` runs in one command (ignoring `--llm-profile`, `--prompt` and `--sampling`) and summarizes in a table of accuracy, first-attempt validity, latency and cost. With `--all`, an unavailable LLM is skipped with a message, and extraction runs already saved are kept.
+Options: `--llm-profile` (`openrouter` or `ollama`), `--prompt` (a folder under `prompts/`), `--sampling-profile` (`deterministic` or `varied`) and `--batch`. Each run writes one JSONL file to `extractions/<batch>/`. The full comparison is 2 LLM profiles × 2 prompts × 2 sampling profiles = 8 runs, which `--all` runs in one command (ignoring `--llm-profile`, `--prompt` and `--sampling-profile`) and summarizes in a table of accuracy, first-attempt validity, latency and cost. With `--all`, an unavailable LLM is skipped with a message, and extraction runs already saved are kept.
 
 Evaluate one saved run against the golden labels:
 
@@ -45,7 +45,7 @@ Evaluate one saved run against the golden labels:
 python evaluate.py --extraction-run extractions\batch-01\<run file>.jsonl
 ```
 
-Settings (models, prices, timeout, retries, sampling) are in [`config.toml`](vehicle_accidents_extractor/llm/config.toml). Prompt versions and their changelog are in [`prompts/`](prompts/).
+Settings (LLM profiles, prices, timeout, retries, sampling profiles) are in [`llm_config.toml`](vehicle_accidents_extractor/llm/llm_config.toml). Prompt versions and their changelog are in [`prompts/`](prompts/).
 
 ## Data
 
@@ -70,8 +70,8 @@ Defined in [`vehicle_accidents_extractor/llm/llm_client.py`](vehicle_accidents_e
 
 - [`extraction/`](vehicle_accidents_extractor/extraction/): accident extraction, prompt loading and building, and response validation.
 - [`evaluation/`](vehicle_accidents_extractor/evaluation/): accident scoring, vehicle matching, golden label reading and the extraction run comparison.
-- [`batch/`](vehicle_accidents_extractor/batch/): batch extraction setup and execution, extraction setups, extracting a batch once per setup with one LLM profile, and accident extraction record writing.
-- [`llm/`](vehicle_accidents_extractor/llm/): LLM communication, configuration loading and [`config.toml`](vehicle_accidents_extractor/llm/config.toml).
+- [`batch/`](vehicle_accidents_extractor/batch/): batch extraction setup and execution, extraction setups, `AccidentBatchExtractions` for extracting one batch per setup and LLM profile, and accident extraction record writing.
+- [`llm/`](vehicle_accidents_extractor/llm/): LLM communication, configuration loading and [`llm_config.toml`](vehicle_accidents_extractor/llm/llm_config.toml).
 - [`input_paths.py`](vehicle_accidents_extractor/input_paths.py) and [`artifact_paths.py`](vehicle_accidents_extractor/artifact_paths.py): locations for batch inputs and saved extraction records.
 
 The schema remains at package level. [`main.py`](main.py) connects the components.
@@ -82,13 +82,15 @@ The schema remains at package level. [`main.py`](main.py) connects the component
 
 ```mermaid
 flowchart TD
-    Main[main entry point] -->|loads| ConfigFile[Config file]
-    ConfigFile -->|validated as| Config[Config]
+    Main[main entry point] -->|reads| ConfigReader[read_llm_config]
+    ConfigFile[llm_config.toml] -->|validated by| ConfigReader
+    ConfigReader -->|returns| LLMSettings[LLMConfig]
     Main -->|creates and passes| Inputs[InputPaths]
-    Main -->|passes setups, config, API key and path resolvers| Session[extract_setups_with_llm]
-    Session -->|creates, pings and warms up local LLM| Client[LLMClient]
-    Session -->|passes config, choices and client| Builder[AccidentBatchExtractorBuilder]
-    Session -->|passes output path resolver| Builder
+    Main -->|creates once with setups, config and path resolvers| Extractions[AccidentBatchExtractions]
+    Main -->|passes profile and API key per extraction| Extractions
+    Extractions -->|creates, pings and warms up local LLM| Client[LLMClient]
+    Extractions -->|passes config, choices and client| Builder[AccidentBatchExtractorBuilder]
+    Extractions -->|passes output path resolver| Builder
     Builder -->|requests batch input paths| Inputs
     Inputs -->|returns batch input paths and prompt directory| Builder
     Builder -->|loads selected version with| PromptLoader[Prompt loader]
@@ -107,7 +109,7 @@ flowchart TD
 
 ```mermaid
 flowchart TD
-    Session[extract_setups_with_llm] -->|extracts the batch| BatchExtractor[AccidentBatchExtractor]
+    Extractions[AccidentBatchExtractions] -->|extracts the batch| BatchExtractor[AccidentBatchExtractor]
     BatchExtractor -->|reads each narrative and uses| AccidentExtractor[AccidentExtractor]
     AccidentExtractor -->|returns outcome| BatchExtractor
     BatchExtractor -->|sends accident ID and outcome| Writer[AccidentExtractionRecordWriter]

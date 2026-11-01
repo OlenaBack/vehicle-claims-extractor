@@ -7,6 +7,9 @@ class InputPaths:
     def __init__(self, project_root: Path):
         self.batches_directory = project_root / "data" / "batches"
         self.prompts_directory = project_root / "prompts"
+        self.llm_config_path = (
+            project_root / "vehicle_accidents_extractor" / "llm" / "llm_config.toml"
+        )
 
     def accident_narrative_paths(self, accident_batch: str) -> list[Path]:
         """Return the batch's narrative paths in a fixed order; raise if none exist."""

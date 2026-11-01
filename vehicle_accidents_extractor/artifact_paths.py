@@ -13,8 +13,8 @@ class ArtifactPaths:
         """Return the path for one run's JSONL extraction records."""
         model_filename_component = run_metadata.model.replace("/", "-").replace(":", "-")
         filename = (
-            f"{run_metadata.llm_profile}__{model_filename_component}__"
-            f"{run_metadata.prompt_version}__{run_metadata.sampling_profile}__"
+            f"{run_metadata.llm_profile_name}__{model_filename_component}__"
+            f"{run_metadata.prompt_version}__{run_metadata.sampling_profile_name}__"
             f"{run_metadata.run_id}.jsonl"
         )
         return self.extractions_directory / run_metadata.batch / filename
