@@ -19,7 +19,7 @@ Keep supporting models, schema, LLM client interface, and tests. Use a fake LLM 
 
 ## Coding setup
 
-- Coding skill candidate: `feature-dev`. **Exact source and revision: pending verification.**
+- Coding skill candidate: **Anthropic `feature-dev` plugin v1.0.1**, official source `anthropics/claude-plugins-official`, path `plugins/feature-dev`, repository commit `a7ba5b93db0c7c8d17f3f1d25853adca79598a1a` (verified 2026-11-01). Source: https://github.com/anthropics/claude-plugins-official/tree/a7ba5b93db0c7c8d17f3f1d25853adca79598a1a/plugins/feature-dev . **Installed plugin revision and model behavior in the execution environment still need verification.**
 - Glossary skill candidate: `domain-modeling`. **Exact source, revision, and limitations: pending verification.**
 - Coding model selection: **Claude Sonnet 5.5**, model ID `claude-sonnet-5-5` (verified in Anthropic documentation, 2026-11-01). Confirm this ID is available in the actual Claude Code environment before the experiment. Use the same model and effort setting for both runs. Source: https://platform.claude.com/docs/en/models/sonnet-5-5/overview
 - The baseline and decorated runs must use identical skill instructions and model versions. The decorated run adds only frozen Clear Takeoff rules.
