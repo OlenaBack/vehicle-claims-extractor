@@ -1,4 +1,4 @@
-timeout_seconds = 600
+timeout_seconds = 300
 max_retries = 2
 max_tokens = 800
 

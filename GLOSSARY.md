@@ -31,6 +31,9 @@ Processing accident narratives in a batch using one model profile and one extrac
 A prompt version combined with a sampling profile. A batch extraction applies one setup to one model profile.
 _Avoid_: configuration, experiment
 
+**Model session**:
+A connected period in which one selected model profile is reused across extraction setups.
+
 **Extraction run**:
 The recorded instance of a batch extraction, including its settings and per-accident records.
 _Avoid_: job, batch run
