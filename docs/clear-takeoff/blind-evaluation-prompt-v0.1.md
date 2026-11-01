@@ -7,7 +7,7 @@
 - Two anonymized source exports labelled **A** and **B** in randomly assigned order. Include only the changed `extraction/` code and the extractor assembly lines in `AccidentBatchExtractorBuilder.build()`.
 - Shared acceptance-test outcomes, presented identically for both implementations.
 
-Do **not** provide branch names, git history, authors, commit messages, `AGENTS.md`, or the decorator rules themselves.
+Do **not** provide branch names, git history, authors, commit messages, `AGENTS.md`, or the decorator rules themselves. The rules are used only in the separate rule check below.
 
 ## Method
 1. Evaluate A on its own, then B on its own, without comparison during the individual assessments.
@@ -23,5 +23,8 @@ Do **not** provide branch names, git history, authors, commit messages, `AGENTS.
 - Scores are subjective, not statistical proof. No numerical success threshold applies to this one-run-per-arm exploratory trial.
 - This blind assessment is primary qualitative evaluation evidence. Developer observations after the reveal are secondary context.
 
+## Rule check (separate pass)
+Run only after the clarity assessment above is recorded, in a fresh session with the same A/B exports and labels plus the frozen `rules/clear-takeoff-v0.1.md`. For each rule and each implementation, classify the rule as **followed**, **ignored**, or **over-applied**, citing code. Do not revise the earlier scores, and do not guess which run received the rules.
+
 ## Output
-For each of A and B: four scores with cited source evidence, notable strengths, and concrete concerns. Then a balanced comparison, uncertainty, and a provisional conclusion without revealing or speculating about arm identity.
+For each of A and B: four scores with cited source evidence, notable strengths, and concrete concerns. Then a balanced comparison, uncertainty, and a provisional conclusion without revealing or speculating about arm identity. The rule check adds, per rule and implementation: followed, ignored, or over-applied, with cited code.
