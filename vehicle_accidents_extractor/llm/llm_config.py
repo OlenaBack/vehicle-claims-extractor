@@ -9,6 +9,8 @@ Price = Annotated[float, Field(ge=0, allow_inf_nan=False)]
 
 
 class LLMProfile(BaseModel):
+    """Settings for connecting to one LLM and estimating its token cost."""
+
     model_config = ConfigDict(extra="forbid")
 
     base_url: str
@@ -18,7 +20,7 @@ class LLMProfile(BaseModel):
 
     @property
     def is_local(self) -> bool:
-        """A local model needs no API key."""
+        """An LLM profile without an API key variable is treated as local."""
         return self.api_key_env is None
 
     @field_validator("base_url")
@@ -36,6 +38,8 @@ class LLMProfile(BaseModel):
 
 
 class SamplingProfile(BaseModel):
+    """Sampling values applied to each LLM call in an extraction setup."""
+
     model_config = ConfigDict(extra="forbid")
 
     temperature: float = Field(ge=0, le=2, allow_inf_nan=False)
@@ -43,6 +47,8 @@ class SamplingProfile(BaseModel):
 
 
 class LLMConfig(BaseModel):
+    """Run limits and the available LLM and sampling profiles."""
+
     model_config = ConfigDict(extra="forbid")
 
     timeout_seconds: int = Field(default=60, gt=0, strict=True)

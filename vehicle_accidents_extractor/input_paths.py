@@ -1,4 +1,4 @@
-"""Resolve accident batch inputs and prompt locations."""
+"""Resolve the input locations: accident batches, prompts and the LLM config."""
 
 from pathlib import Path
 

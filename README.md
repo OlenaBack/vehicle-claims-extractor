@@ -37,7 +37,9 @@ python main.py --llm-profile ollama --prompt v2 --sampling-profile varied
 python main.py --all                                    # every LLM profile × prompt × sampling profile, then a comparison table
 ```
 
-Options: `--llm-profile` (`openrouter` or `ollama`), `--prompt` (a folder under `prompts/`), `--sampling-profile` (`deterministic` or `varied`) and `--batch`. Each run writes one JSONL file to `extractions/<batch>/`. The full comparison is 2 LLM profiles × 2 prompts × 2 sampling profiles = 8 runs, which `--all` runs in one command (ignoring `--llm-profile`, `--prompt` and `--sampling-profile`) and summarizes in a table of accuracy, first-attempt validity, latency and cost. With `--all`, an unavailable LLM is skipped with a message, and extraction runs already saved are kept.
+Options: `--llm-profile` (`openrouter` or `ollama`), `--prompt` (a folder under `prompts/`), `--sampling-profile` (`deterministic` or `varied`) and `--batch`. The profile options select sections of `llm_config.toml` by name. Each run writes one JSONL file to `extractions/<batch>/`. The full comparison is 2 LLM profiles × 2 prompts × 2 sampling profiles = 8 runs, which `--all` runs in one command (ignoring `--llm-profile`, `--prompt` and `--sampling-profile`) and summarizes in a table of accuracy, first-attempt validity, latency and cost. With `--all`, an unavailable LLM is skipped with a message, and extraction runs already saved are kept.
+
+Saved run metadata uses the keys `model_profile` and `sampling_profile` for compatibility with earlier runs.
 
 Evaluate one saved run against the golden labels:
 

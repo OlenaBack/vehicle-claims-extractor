@@ -1,4 +1,4 @@
-"""Temporary Sampling alias for the Clear Takeoff trial import."""
+"""Temporary Clear Takeoff alias; update AccidentExtractor to use SamplingProfile after the trial."""
 
 from .llm_config import SamplingProfile
 
