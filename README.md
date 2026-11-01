@@ -37,9 +37,7 @@ python main.py --llm-profile ollama --prompt v2 --sampling-profile varied
 python main.py --all                                    # every LLM profile × prompt × sampling profile, then a comparison table
 ```
 
-Options: `--llm-profile` (`openrouter` or `ollama`), `--prompt` (a folder under `prompts/`), `--sampling-profile` (`deterministic` or `varied`) and `--batch`. The profile options select sections of `llm_config.toml` by name. Each run writes one JSONL file to `extractions/<batch>/`. The full comparison is 2 LLM profiles × 2 prompts × 2 sampling profiles = 8 runs, which `--all` runs in one command (ignoring `--llm-profile`, `--prompt` and `--sampling-profile`) and summarizes in a table of accuracy, first-attempt validity, latency and cost. With `--all`, an unavailable LLM is skipped with a message, and extraction runs already saved are kept.
-
-Saved run metadata uses the keys `model_profile` and `sampling_profile` for compatibility with earlier runs.
+Options: `--llm-profile` (`openrouter` or `ollama`), `--prompt` (a folder under `prompts/`), `--sampling-profile` (`deterministic` or `varied`) and `--batch`. The profile options select sections of `llm_config.toml` by name. Use `--all` to run every configured combination and print a comparison; unavailable LLMs are skipped and completed extraction runs are kept.
 
 Evaluate one saved run against the golden labels:
 
@@ -47,115 +45,14 @@ Evaluate one saved run against the golden labels:
 python evaluate.py --extraction-run extractions\batch-01\<run file>.jsonl
 ```
 
-Settings (LLM profiles, prices, timeout, retries, sampling profiles) are in [`llm_config.toml`](vehicle_accidents_extractor/llm/llm_config.toml). Prompt versions and their changelog are in [`prompts/`](prompts/).
+Settings (LLM profiles, prices, timeout, retries and sampling profiles) are in [`llm_config.toml`](vehicle_accidents_extractor/llm/llm_config.toml). Prompt versions and their changelog are in [`prompts/`](prompts/).
 
-## Data
+## Files and outputs
 
-`data/batches/batch-01/`:
+Accident narratives and golden labels are stored in `data/batches/<batch>/`. Each extraction run writes a JSONL file to `extractions/<batch>/`. Run metadata uses the keys `model_profile` and `sampling_profile` for compatibility with earlier runs. `evaluate.py` reads a saved run and compares its records with that batch's golden labels.
 
-- `texts/<SCASEID>.txt`: 30 accident narratives sourced from the National Highway Traffic Safety Administration (NHTSA), adapted into 20 English, 5 Swedish and 5 mixed English–Swedish texts. One file per case, named by NHTSA case ID.
-- `golden.jsonl`: hand-made labels for 10 of the 30 texts, one record per line.
+The input data source and adaptations are documented in [data/README.md](data/README.md).
 
-Source and license: [data/README.md](data/README.md).
+## How it works
 
-## Extraction schema
-
-Defined in [`vehicle_accidents_extractor/schema.py`](vehicle_accidents_extractor/schema.py).
-
-## LLM client
-
-Defined in [`vehicle_accidents_extractor/llm/llm_client.py`](vehicle_accidents_extractor/llm/llm_client.py).
-
-`LLMClient` connects to one LLM (OpenRouter or Ollama) through the OpenAI SDK. It handles retries itself instead of the SDK, so every try is recorded for a fair comparison. `LLMAttempt` holds one try's outcome, latency and token usage; `LLMResult` holds the final answer and all its attempts.
-
-## Package structure
-
-- [`extraction/`](vehicle_accidents_extractor/extraction/): accident extraction, prompt loading and building, and response validation.
-- [`evaluation/`](vehicle_accidents_extractor/evaluation/): accident scoring, vehicle matching, golden label reading and the extraction run comparison.
-- [`batch/`](vehicle_accidents_extractor/batch/): batch extraction setup and execution, extraction setups, `AccidentBatchExtractions` for extracting one batch per setup and LLM profile, and accident extraction record writing.
-- [`llm/`](vehicle_accidents_extractor/llm/): LLM communication, configuration loading and [`llm_config.toml`](vehicle_accidents_extractor/llm/llm_config.toml).
-- [`input_paths.py`](vehicle_accidents_extractor/input_paths.py) and [`artifact_paths.py`](vehicle_accidents_extractor/artifact_paths.py): locations for batch inputs and saved extraction records.
-
-The schema remains at package level. [`main.py`](main.py) connects the components.
-
-## Extraction and evaluation flow
-
-### Build an extraction run
-
-```mermaid
-flowchart TD
-    Main[main entry point] -->|reads| ConfigReader[read_llm_config]
-    ConfigFile[llm_config.toml] -->|validated by| ConfigReader
-    ConfigReader -->|returns| LLMSettings[LLMConfig]
-    Main -->|creates and passes| Inputs[InputPaths]
-    Main -->|creates once with setups, config and path resolvers| Extractions[AccidentBatchExtractions]
-    Main -->|passes profile and API key per extraction| Extractions
-    Extractions -->|creates, pings and warms up local LLM| Client[LLMClient]
-    Extractions -->|passes config, choices and client| Builder[AccidentBatchExtractorBuilder]
-    Extractions -->|passes output path resolver| Builder
-    Builder -->|requests batch input paths| Inputs
-    Inputs -->|returns batch input paths and prompt directory| Builder
-    Builder -->|loads selected version with| PromptLoader[Prompt loader]
-    PromptFiles[Prompt files] -->|read by| PromptLoader
-    PromptLoader -->|returns| Prompts[ExtractionPrompts]
-    Prompts -->|system and repair text| PromptBuilder[PromptBuilder]
-    Builder -->|creates| PromptBuilder
-    Builder -->|uses run metadata| ArtifactPaths[ArtifactPaths]
-    ArtifactPaths -->|returns extraction run records path| Builder
-    Builder -->|builds| BatchExtractor[AccidentBatchExtractor]
-    Builder -->|creates with client| AccidentExtractor[AccidentExtractor]
-    Builder -->|creates| Validator[ResponseValidator]
-```
-
-### Process an accident batch
-
-```mermaid
-flowchart TD
-    Extractions[AccidentBatchExtractions] -->|extracts the batch| BatchExtractor[AccidentBatchExtractor]
-    BatchExtractor -->|reads each narrative and uses| AccidentExtractor[AccidentExtractor]
-    AccidentExtractor -->|returns outcome| BatchExtractor
-    BatchExtractor -->|sends accident ID and outcome| Writer[AccidentExtractionRecordWriter]
-```
-
-### Extract and validate one accident narrative
-
-```mermaid
-flowchart TD
-    Narrative[Accident narrative] --> Extractor[AccidentExtractor]
-    Extractor -->|requests initial messages| PromptBuilder[PromptBuilder]
-    PromptBuilder -->|initial or repair messages| Extractor
-    Extractor -->|sends chat request| Client[LLMClient]
-    Client -->|returns response and attempts| LLMResult[LLMResult]
-    LLMResult --> Extractor
-    Extractor -->|validates response| Validator[ResponseValidator]
-    Validator -->|valid data| Accident[VehicleAccident]
-    Validator -->|repairable or unrepairable error| Extractor
-    Accident --> Extractor
-    Extractor -->|requests repair messages| PromptBuilder
-    Extractor -->|valid, repaired, or failed| Outcome[AccidentExtractionOutcome]
-```
-
-### Save accident extraction records
-
-```mermaid
-flowchart TD
-    BatchExtractor[AccidentBatchExtractor] -->|provides run metadata and path| Writer[AccidentExtractionRecordWriter]
-    BatchExtractor -->|provides accident ID and outcome| Writer
-    Writer -->|creates| Record[AccidentExtractionRecord]
-    Record -->|writes one JSONL line| JSONL[Saved extraction run]
-```
-
-### Evaluate a saved extraction run
-
-```mermaid
-flowchart TD
-    Evaluate[evaluate entry point] -->|passes extraction run path| Reader[Accident extraction record reader]
-    JSONL[Saved extraction run] -->|read as| Reader
-    Reader -->|extraction records| Evaluate
-    Evaluate -->|requests golden labels path| Inputs[InputPaths]
-    Inputs -->|returns golden labels path| Evaluate
-    Evaluate -->|reads| GoldenFile[Golden labels file]
-    GoldenFile -->|validated as| Golden[GoldenRecord entries]
-    Evaluate -->|passes records and labels| Metrics[Run metrics]
-    Metrics --> Scores[Accuracy validity latency cost]
-```
+See [docs/how-it-works.md](docs/how-it-works.md) for the extraction flow, saved data types and module responsibilities.
