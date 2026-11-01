@@ -1,6 +1,7 @@
 """Run accident extraction: one setup by default, or every model, prompt and sampling setup with --all."""
 
 import argparse
+import os
 from pathlib import Path
 
 from dotenv import load_dotenv
@@ -10,14 +11,17 @@ from vehicle_accidents_extractor.batch.extraction_setups import (
     ExtractionSetup,
     extraction_setups,
 )
-from vehicle_accidents_extractor.batch.model_session import extract_setups_with_model
-from vehicle_accidents_extractor.evaluation.golden_record_reader import read_golden_records
+from vehicle_accidents_extractor.batch.model_session import (
+    LLMUnavailable,
+    extract_setups_with_model,
+)
 from vehicle_accidents_extractor.evaluation.extraction_run_comparison import (
     format_extraction_run_comparison,
 )
+from vehicle_accidents_extractor.evaluation.golden_record_reader import read_golden_records
 from vehicle_accidents_extractor.extraction.prompt_loader import available_prompt_versions
 from vehicle_accidents_extractor.input_paths import InputPaths
-from vehicle_accidents_extractor.llm.config import load_config
+from vehicle_accidents_extractor.llm.config import ModelConfig, load_config
 
 
 ROOT = Path(__file__).resolve().parent
@@ -40,6 +44,16 @@ def parse_args() -> argparse.Namespace:
     return parser.parse_args()
 
 
+def resolve_api_key(model_config: ModelConfig) -> str | None:
+    """Return the API key for an LLM profile, or None if a required key is missing.
+
+    A local Ollama server needs no real key; the client still requires a value.
+    """
+    if model_config.is_local:
+        return "ollama"
+    return os.getenv(model_config.api_key_env, "").strip() or None
+
+
 def run(args: argparse.Namespace) -> None:
     load_dotenv(ROOT / ".env")
     config = load_config()
@@ -55,13 +69,27 @@ def run(args: argparse.Namespace) -> None:
         model_profiles = [args.model]
         setups = [ExtractionSetup(args.prompt, args.sampling)]
 
-    saved_paths = [
-        path
-        for model_profile in model_profiles
-        for path in extract_setups_with_model(
-            config, model_profile, args.batch, setups, input_paths, artifact_paths,
-        )
-    ]
+    saved_paths: list[Path] = []
+    for model_profile in model_profiles:
+        model_config = config.get_model(model_profile)
+        api_key = resolve_api_key(model_config)
+        if api_key is None:
+            if not args.all:
+                raise ValueError(
+                    f"Missing {model_config.api_key_env} for LLM profile {model_profile!r}"
+                )
+            print(f"Skipping {model_profile}: missing {model_config.api_key_env}")
+            continue
+
+        try:
+            saved_paths += extract_setups_with_model(
+                config, model_profile, api_key, args.batch, setups, input_paths, artifact_paths,
+            )
+        except LLMUnavailable as unavailable:
+            if not args.all:
+                raise
+            print(f"Skipping {model_profile}: {unavailable.reason}")
+            saved_paths += unavailable.saved_paths
 
     if args.all and saved_paths:
         golden_records = read_golden_records(input_paths.golden_labels_path(args.batch))
@@ -72,7 +100,7 @@ def main() -> None:
     args = parse_args()
     try:
         run(args)
-    except (OSError, ValueError) as error:
+    except (OSError, ValueError, LLMUnavailable) as error:
         raise SystemExit(str(error)) from error
 
 
