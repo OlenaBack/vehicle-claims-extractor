@@ -1,41 +1,47 @@
 # Clear Takeoff — Trial Preparation
 
-**Status:** In preparation (2026-11-01)  
-**Repository:** `OlenaBack/vehicle-claims-extractor`  
-**Preparation branch:** `clear-takeoff/trial-preparation`  
-**Reference:** Approved Clear Takeoff MVP and PLAN.md in `OlenaBack/clear-takeoff`.
+**Status:** In preparation (2026-11-01)
+**Repository:** `OlenaBack/vehicle-claims-extractor`
+**Preparation branch:** `clear-takeoff/trial-preparation`
+**Reference:** Clear Takeoff `MVP.md`; approved trial decisions take precedence where the original MVP has not yet been updated.
 
-## Trial feature
+## Trial task
 
-Reimplement **single-accident text extraction with response validation and one repair attempt**.
-
-Proposed implementation files to remove *later*, only on the preparation branch:
+Reimplement **single-accident narrative extraction with response validation and at most one repair attempt** in these three files:
 
 - `vehicle_accidents_extractor/extraction/accident_extractor.py`
 - `vehicle_accidents_extractor/extraction/prompt_builder.py`
 - `vehicle_accidents_extractor/extraction/response_validator.py`
 
-Keep supporting models, schema, LLM client interface, and tests. Use a fake LLM client for deterministic tests; no live LLM calls in acceptance tests. No implementation files have been removed as part of recording this document.
+Preserve `AccidentExtractor.extract(narrative: str) -> AccidentExtractionOutcome`, its outcome structure, and compatibility with existing callers. On the first valid response return `valid`; after a successful repair return `repaired`; after unsuccessful permitted attempts return `failed`. Unrepairable responses fail without a repair attempt.
 
-## Coding setup
+Keep supporting schema, LLM interface, status type, glossary and batch integration unchanged. Allow the coding skill to choose internal implementation details within the approved design. No implementation files have been removed yet.
 
-- **Coding agent:** OpenAI Codex (selected instead of Claude Code). Record the exact Codex version and selected OpenAI model before either run; the model is **not yet pinned**.
-- **Skill source:** Matt Pocock's [Skills for Real Engineers](https://github.com/mattpocock/skills), commit `4ae2317ddb22b046e26455e4f9c9b3aaaf62212d` (repository revision checked 2026-11-01).
-- **Coding workflow candidate:** `implement` (builds from a spec/tickets and invokes `tdd` and `code-review`). Confirm compatibility with the approved MVP's requirement to compare *initial generated code before review fixes*, and avoid creating extra uncontrolled inputs.
-- **Glossary skill:** Matt Pocock's `domain-modeling`; document any limitations and approve the glossary before either run.
-- **Supporting discipline (subject to fit):** `codebase-design` and `tdd`. Keep the **same frozen skill set** in both baseline and decorated runs.
-- **Superseded selection:** Anthropic `feature-dev` v1.0.1 and Claude Sonnet 5.5 were previously considered, but are **not** the planned toolchain after the switch to Codex.
-- **Installation:** The Matt Pocock repository documents Codex support using `npx skills@latest add mattpocock/skills`. Verify installed files match the frozen source revision; do not permit later updates to change either run.
-- The baseline and decorated runs must use identical coding skill instructions, model, approved glossary, design, and tests. Only the decorated run adds the frozen Clear Takeoff engineering rules.
+## Fixed coding setup
 
-## Controls and open preparation work
+- **Coding agent:** OpenAI Codex.
+- **Model selected:** GPT-6.1 Sol, Medium reasoning effort **subject to confirmation in the local Codex installation**. Record the model identifier and Codex version actually available before either run; if unavailable, approve a replacement and use it for both.
+- **Coding skill:** Matt Pocock's `implement`, source repository [mattpocock/skills](https://github.com/mattpocock/skills), source commit `4ae2317ddb22b046e26455e4f9c9b3aaaf62212d`. Verify the locally installed skill matches this revision.
+- **Glossary:** Existing approved `GLOSSARY.md`, identical in both runs. Do not run additional design or domain-modeling workflows that would change shared inputs.
+- **Decorator:** [Clear Takeoff v0.1 rules](https://github.com/OlenaBack/clear-takeoff/blob/clear-takeoff/rules-v0.1/rules/clear-takeoff-v0.1.md), branch `clear-takeoff/rules-v0.1`, latest reviewed commit `b7c4c0bb9745afe8e01b3564554f6d909723f986`. Freeze the exact rule text in the decorated run.
+- **Shared project instructions:** Neutral `AGENTS.md` on this preparation branch. The baseline uses only the shared instructions; the decorated run adds the frozen rule text.
 
-1. Verify the coding skill meets the approved MVP fit criteria, and record source/revision; document glossary skill limitations.
-2. Prepare approved feature requirements, glossary, design note identifying the public entry point, and prewritten acceptance tests.
-3. Review existing `AGENTS.md` engineering guidance so it does not contaminate the baseline. Establish identical shared context for both runs.
-4. Freeze the starting commit, model and skill revisions, approved inputs, Clear Takeoff rules commit, and exact decorated `AGENTS.md` rules section.
-5. When the preparation state is ready, create `clear-takeoff/baseline` and `clear-takeoff/decorated` from the **same prepared commit**. Capture generated code before review corrections and record run questions and answers.
+## Validation and evaluation
 
-## Repository safety guardrail
+- **No separate prewritten deterministic acceptance-test suite** for this MVP. Let the `implement` skill perform its normal tests and review workflow; record what verification was run and whether it passed.
+- Capture the **initial generated code before review-driven corrections** in each run.
+- Compare the two implementations with a **blind LLM evaluation**, assessing each independently before comparing. Score semantic consistency, self-explanatory code, cohesive responsibilities, and readable execution flow (1–5 each), with concrete code evidence. Record trade-offs and a justified comparison; scores are subjective, not proof of superiority.
+- Use the same task, approved public contract and design, starting source snapshot, Codex model/settings, installed skill revision, and glossary in both runs. Only the decorated run receives Clear Takeoff rules.
+- Do not change either implementation based on evaluation findings before recording the comparison.
 
-**Never commit, push, or merge experiment changes to `main` or `master`.** All trial preparation and experiment changes must stay on explicitly named `clear-takeoff/*` branches. Verify the repository and target branch before every write. The existing default branch is not an experiment destination.
+## Remaining preparation
+
+1. Confirm the selected model and Codex version locally; verify installed `implement` skill against its frozen source.
+2. Freeze the written task/design inputs and the exact common starting commit.
+3. Prepare the controlled starting snapshot for reimplementation **only on a `clear-takeoff/*` branch**; check existing source-code visibility does not leak a solution into either run.
+4. Create `clear-takeoff/baseline` and `clear-takeoff/decorated` from the same prepared commit. Verify their shared inputs and the decorator difference before invoking Codex.
+5. Run both trials, capture code before review fixes, and record the blind evaluation.
+
+## Safety
+
+**Never commit, push, or merge experiment changes to `main` or `master`.** Work only on explicitly named `clear-takeoff/*` branches. Verify repository and target branch before every write.
