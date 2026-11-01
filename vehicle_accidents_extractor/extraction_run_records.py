@@ -13,13 +13,13 @@ from .schema import VehicleAccident
 
 
 class ExtractionRunMetadata(BaseModel):
-    model_config = ConfigDict(extra="forbid", frozen=True)
+    model_config = ConfigDict(extra="forbid", frozen=True, populate_by_name=True)
 
     run_id: str
     started_at: datetime
     batch: str
 
-    model_profile: str
+    llm_profile: str = Field(alias="model_profile")
     model: str
     base_url: str
 

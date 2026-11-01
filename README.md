@@ -33,11 +33,11 @@ If Ollama is not reachable, a single run fails with a message; `--all` skips tha
 
 ```powershell
 python main.py                                          # openrouter, prompt v1, deterministic, batch-01
-python main.py --model ollama --prompt v2 --sampling varied
-python main.py --all                                    # every model × prompt × sampling, then a comparison table
+python main.py --llm-profile ollama --prompt v2 --sampling varied
+python main.py --all                                    # every LLM profile × prompt × sampling, then a comparison table
 ```
 
-Options: `--model` (`openrouter` or `ollama`), `--prompt` (a folder under `prompts/`), `--sampling` (`deterministic` or `varied`) and `--batch`. Each run writes one JSONL file to `extractions/<batch>/`. The full comparison is 2 models × 2 prompts × 2 sampling profiles = 8 runs, which `--all` runs in one command (ignoring `--model`, `--prompt` and `--sampling`) and summarizes in a table of accuracy, first-attempt validity, latency and cost. With `--all`, an unavailable LLM is skipped with a message, and extraction runs already saved are kept.
+Options: `--llm-profile` (`openrouter` or `ollama`), `--prompt` (a folder under `prompts/`), `--sampling` (`deterministic` or `varied`) and `--batch`. Each run writes one JSONL file to `extractions/<batch>/`. The full comparison is 2 LLM profiles × 2 prompts × 2 sampling profiles = 8 runs, which `--all` runs in one command (ignoring `--llm-profile`, `--prompt` and `--sampling`) and summarizes in a table of accuracy, first-attempt validity, latency and cost. With `--all`, an unavailable LLM is skipped with a message, and extraction runs already saved are kept.
 
 Evaluate one saved run against the golden labels:
 
@@ -64,14 +64,14 @@ Defined in [`vehicle_accidents_extractor/schema.py`](vehicle_accidents_extractor
 
 Defined in [`vehicle_accidents_extractor/llm/llm_client.py`](vehicle_accidents_extractor/llm/llm_client.py).
 
-`LLMClient` connects to one model (OpenRouter or Ollama) through the OpenAI SDK. It handles retries itself instead of the SDK, so every try is recorded for a fair comparison. `LLMAttempt` holds one try's outcome, latency and token usage; `LLMResult` holds the final answer and all its attempts.
+`LLMClient` connects to one LLM (OpenRouter or Ollama) through the OpenAI SDK. It handles retries itself instead of the SDK, so every try is recorded for a fair comparison. `LLMAttempt` holds one try's outcome, latency and token usage; `LLMResult` holds the final answer and all its attempts.
 
 ## Package structure
 
 - [`extraction/`](vehicle_accidents_extractor/extraction/): accident extraction, prompt loading and building, and response validation.
 - [`evaluation/`](vehicle_accidents_extractor/evaluation/): accident scoring, vehicle matching, golden label reading and the extraction run comparison.
-- [`batch/`](vehicle_accidents_extractor/batch/): batch extraction setup and execution, extraction setups, one model's extraction session, and accident extraction record writing.
-- [`llm/`](vehicle_accidents_extractor/llm/): model communication, configuration loading and [`config.toml`](vehicle_accidents_extractor/llm/config.toml).
+- [`batch/`](vehicle_accidents_extractor/batch/): batch extraction setup and execution, extraction setups, extracting a batch once per setup with one LLM profile, and accident extraction record writing.
+- [`llm/`](vehicle_accidents_extractor/llm/): LLM communication, configuration loading and [`config.toml`](vehicle_accidents_extractor/llm/config.toml).
 - [`input_paths.py`](vehicle_accidents_extractor/input_paths.py) and [`artifact_paths.py`](vehicle_accidents_extractor/artifact_paths.py): locations for batch inputs and saved extraction records.
 
 The schema remains at package level. [`main.py`](main.py) connects the components.
@@ -85,8 +85,8 @@ flowchart TD
     Main[main entry point] -->|loads| ConfigFile[Config file]
     ConfigFile -->|validated as| Config[Config]
     Main -->|creates and passes| Inputs[InputPaths]
-    Main -->|passes setups, config and path resolvers| Session[extract_setups_with_model]
-    Session -->|creates, pings and warms up local model| Client[LLMClient]
+    Main -->|passes setups, config, API key and path resolvers| Session[extract_setups_with_llm]
+    Session -->|creates, pings and warms up local LLM| Client[LLMClient]
     Session -->|passes config, choices and client| Builder[AccidentBatchExtractorBuilder]
     Session -->|passes output path resolver| Builder
     Builder -->|requests batch input paths| Inputs
@@ -107,7 +107,7 @@ flowchart TD
 
 ```mermaid
 flowchart TD
-    Session[extract_setups_with_model] -->|extracts the batch| BatchExtractor[AccidentBatchExtractor]
+    Session[extract_setups_with_llm] -->|extracts the batch| BatchExtractor[AccidentBatchExtractor]
     BatchExtractor -->|reads each narrative and uses| AccidentExtractor[AccidentExtractor]
     AccidentExtractor -->|returns outcome| BatchExtractor
     BatchExtractor -->|sends accident ID and outcome| Writer[AccidentExtractionRecordWriter]

@@ -1,4 +1,4 @@
-"""Keep one model connected while it extracts several setups of an accident batch."""
+"""Keep one LLM connected while it extracts several setups of an accident batch."""
 
 from pathlib import Path
 
@@ -24,9 +24,9 @@ class LLMUnavailable(RuntimeError):
         self.saved_paths = saved_paths
 
 
-def extract_setups_with_model(
+def extract_setups_with_llm(
     config: Config,
-    model_profile: str,
+    llm_profile: str,
     api_key: str,
     accident_batch: str,
     setups: list[ExtractionSetup],
@@ -38,12 +38,12 @@ def extract_setups_with_model(
     Connection-check and warm-up failures raise LLMUnavailable, which carries
     paths saved before the failure.
     """
-    model_config = config.get_model(model_profile)
+    llm_config = config.get_llm_config(llm_profile)
     saved_paths: list[Path] = []
     with LLMClient(
-        base_url=model_config.base_url,
+        base_url=llm_config.base_url,
         api_key=api_key,
-        model=model_config.model,
+        model=llm_config.model,
         timeout_seconds=config.timeout_seconds,
         max_retries=config.max_retries,
     ) as llm_client:
@@ -54,7 +54,7 @@ def extract_setups_with_model(
             )
 
         for setup in setups:
-            if model_config.is_local and (warm_up_error := llm_client.warm_up()):
+            if llm_config.is_local and (warm_up_error := llm_client.warm_up()):
                 raise LLMUnavailable(
                     f"warm-up failed: {warm_up_error}",
                     saved_paths=tuple(saved_paths),
@@ -62,7 +62,7 @@ def extract_setups_with_model(
             batch_extractor = (
                 AccidentBatchExtractorBuilder(config, input_paths)
                 .for_accident_batch(accident_batch)
-                .with_model_profile(model_profile)
+                .with_llm_profile(llm_profile)
                 .with_llm_client(llm_client)
                 .with_prompt_version(setup.prompt_version)
                 .with_sampling_profile(setup.sampling_profile)

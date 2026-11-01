@@ -11,7 +11,7 @@ DEFAULT_CONFIG_PATH = Path(__file__).resolve().parent / "config.toml"
 Price = Annotated[float, Field(ge=0, allow_inf_nan=False)]
 
 
-class ModelConfig(BaseModel):
+class LLMConfig(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
     base_url: str
@@ -51,15 +51,15 @@ class Config(BaseModel):
     timeout_seconds: int = Field(default=60, gt=0, strict=True)
     max_retries: int = Field(default=2, ge=0, strict=True)
     max_tokens: int = Field(default=800, gt=0, strict=True)
-    models: dict[str, ModelConfig] = Field(min_length=1)
+    llm_profiles: dict[str, LLMConfig] = Field(min_length=1)
     sampling: dict[str, Sampling] = Field(min_length=1)
 
-    def get_model(self, model_profile: str) -> ModelConfig:
-        if model_profile not in self.models:
+    def get_llm_config(self, llm_profile: str) -> LLMConfig:
+        if llm_profile not in self.llm_profiles:
             raise ValueError(
-                f"Unknown model profile {model_profile!r}. Available: {', '.join(self.models)}"
+                f"Unknown LLM profile {llm_profile!r}. Available: {', '.join(self.llm_profiles)}"
             )
-        return self.models[model_profile]
+        return self.llm_profiles[llm_profile]
 
     def get_sampling(self, sampling_profile: str) -> Sampling:
         if sampling_profile not in self.sampling:

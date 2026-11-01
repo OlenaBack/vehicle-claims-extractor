@@ -25,7 +25,7 @@ The human-prepared structured accident facts for one narrative in the golden set
 _Avoid_: expected output, answer key
 
 **LLM profile**:
-A named configuration that selects one LLM: its endpoint, API key variable, model ID and price per 1M tokens, such as `openrouter` or `ollama`. Saved extraction runs store it under the key `model_profile`.
+A named configuration that selects one LLM: its endpoint, API key variable, model ID and price per 1M tokens, such as `openrouter` or `ollama`. The CLI selects it with `--llm-profile`; code calls its name `llm_profile` and its settings `llm_config`. Saved extraction runs store it under the key `model_profile`.
 _Avoid_: model, model profile (the model ID is only one part of a profile)
 
 **Sampling profile**:

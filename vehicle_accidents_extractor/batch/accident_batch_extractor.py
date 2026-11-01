@@ -51,7 +51,7 @@ class AccidentBatchExtractorBuilder:
         self._input_paths = input_paths
         self._artifact_paths: ArtifactPaths | None = None
         self._accident_batch: str | None = None
-        self._model_profile: str | None = None
+        self._llm_profile: str | None = None
         self._llm_client: LLMClient | None = None
         self._prompt_version: str | None = None
         self._sampling_profile: str | None = None
@@ -60,8 +60,8 @@ class AccidentBatchExtractorBuilder:
         self._accident_batch = accident_batch
         return self
 
-    def with_model_profile(self, model_profile: str) -> "AccidentBatchExtractorBuilder":
-        self._model_profile = model_profile
+    def with_llm_profile(self, llm_profile: str) -> "AccidentBatchExtractorBuilder":
+        self._llm_profile = llm_profile
         return self
 
     def with_llm_client(self, llm_client: LLMClient) -> "AccidentBatchExtractorBuilder":
@@ -83,7 +83,7 @@ class AccidentBatchExtractorBuilder:
 
     def build(self) -> AccidentBatchExtractor:
         accident_batch = self._required(self._accident_batch, "accident batch")
-        model_profile = self._required(self._model_profile, "model profile")
+        llm_profile = self._required(self._llm_profile, "LLM profile")
         prompt_version = self._required(self._prompt_version, "prompt version")
         sampling_profile = self._required(self._sampling_profile, "sampling profile")
         if self._artifact_paths is None:
@@ -91,7 +91,7 @@ class AccidentBatchExtractorBuilder:
         if self._llm_client is None:
             raise ValueError("An LLM client is required to build an accident batch extractor")
 
-        model_config = self._config.get_model(model_profile)
+        llm_config = self._config.get_llm_config(llm_profile)
         sampling = self._config.get_sampling(sampling_profile)
         prompts = load_extraction_prompts(self._input_paths.prompts_directory, prompt_version)
         narrative_paths = self._input_paths.accident_narrative_paths(accident_batch)
@@ -99,9 +99,9 @@ class AccidentBatchExtractorBuilder:
             run_id=uuid4().hex,
             started_at=datetime.now(timezone.utc),
             batch=accident_batch,
-            model_profile=model_profile,
-            model=model_config.model,
-            base_url=model_config.base_url,
+            llm_profile=llm_profile,
+            model=llm_config.model,
+            base_url=llm_config.base_url,
             prompt_version=prompts.prompt_version,
             system_hash=prompts.system_hash,
             repair_hash=prompts.repair_hash,
@@ -111,7 +111,7 @@ class AccidentBatchExtractorBuilder:
             timeout_seconds=self._config.timeout_seconds,
             max_retries=self._config.max_retries,
             max_tokens=self._config.max_tokens,
-            price_per_1m=model_config.price_per_1m,
+            price_per_1m=llm_config.price_per_1m,
             machine=(
                 f"{platform.system()}-{platform.release()} · {platform.processor()} · "
                 f"{os.cpu_count()} logical CPUs"
