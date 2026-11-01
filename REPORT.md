@@ -149,3 +149,17 @@ Generated with `python evaluate.py --compare extractions/batch-01/*.jsonl --mark
 | 22 | openai/gpt-4o-mini | v2 | varied | `c8baafad` | 92.2% (165/179) | 100% | 100% | 2.20 s | 3.13 s | $0.436 | 0 | 0 |
 | 23 | openai/gpt-4o-mini | v2 | varied | `e8c8b5c1` | 93.3% (167/179) | 100% | 100% | 2.02 s | 2.84 s | $0.435 | 0 | 0 |
 | 24 | openai/gpt-4o-mini | v2 | varied | `f0524db6` | 93.3% (166/178) | 100% | 100% | 2.13 s | 2.73 s | $0.436 | 0 | 0 |
+
+
+## Next step: checking extractions with an LLM judge
+
+Most errors of the chosen setup fill in a value the text doesn't state, such as `injuries_reported`, or earlier rain counted as current weather. The golden labels catch this for only 10 of the 30 narratives.
+
+A second LLM could check each extraction against its narrative. For every field it answers `supported`, `contradicted` or `not stated`, and quotes the text as evidence.
+
+- It would run on saved extraction runs, so extraction doesn't change.
+- It would first be tested on the 10 golden narratives, to measure how often it is right.
+- A different model would act as judge, so gpt-4o-mini doesn't grade itself.
+- It costs about 30 extra calls per run.
+
+This is a proposal; it is not implemented.
