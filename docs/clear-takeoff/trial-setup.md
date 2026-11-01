@@ -19,10 +19,14 @@ Keep supporting models, schema, LLM client interface, and tests. Use a fake LLM 
 
 ## Coding setup
 
-- Coding skill candidate: **Anthropic `feature-dev` plugin v1.0.1**, official source `anthropics/claude-plugins-official`, path `plugins/feature-dev`, repository commit `a7ba5b93db0c7c8d17f3f1d25853adca79598a1a` (verified 2026-11-01). Source: https://github.com/anthropics/claude-plugins-official/tree/a7ba5b93db0c7c8d17f3f1d25853adca79598a1a/plugins/feature-dev . **Installed plugin revision and model behavior in the execution environment still need verification.**
-- Glossary skill candidate: `domain-modeling`. **Exact source, revision, and limitations: pending verification.**
-- Coding model selection: **Claude Sonnet 5.5**, model ID `claude-sonnet-5-5` (verified in Anthropic documentation, 2026-11-01). Confirm this ID is available in the actual Claude Code environment before the experiment. Use the same model and effort setting for both runs. Source: https://platform.claude.com/docs/en/models/sonnet-5-5/overview
-- The baseline and decorated runs must use identical skill instructions and model versions. The decorated run adds only frozen Clear Takeoff rules.
+- **Coding agent:** OpenAI Codex (selected instead of Claude Code). Record the exact Codex version and selected OpenAI model before either run; the model is **not yet pinned**.
+- **Skill source:** Matt Pocock's [Skills for Real Engineers](https://github.com/mattpocock/skills), commit `4ae2317ddb22b046e26455e4f9c9b3aaaf62212d` (repository revision checked 2026-11-01).
+- **Coding workflow candidate:** `implement` (builds from a spec/tickets and invokes `tdd` and `code-review`). Confirm compatibility with the approved MVP's requirement to compare *initial generated code before review fixes*, and avoid creating extra uncontrolled inputs.
+- **Glossary skill:** Matt Pocock's `domain-modeling`; document any limitations and approve the glossary before either run.
+- **Supporting discipline (subject to fit):** `codebase-design` and `tdd`. Keep the **same frozen skill set** in both baseline and decorated runs.
+- **Superseded selection:** Anthropic `feature-dev` v1.0.1 and Claude Sonnet 5.5 were previously considered, but are **not** the planned toolchain after the switch to Codex.
+- **Installation:** The Matt Pocock repository documents Codex support using `npx skills@latest add mattpocock/skills`. Verify installed files match the frozen source revision; do not permit later updates to change either run.
+- The baseline and decorated runs must use identical coding skill instructions, model, approved glossary, design, and tests. Only the decorated run adds the frozen Clear Takeoff engineering rules.
 
 ## Controls and open preparation work
 
