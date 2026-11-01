@@ -23,7 +23,7 @@ Preserve `AccidentExtractor.extract(narrative: str) -> AccidentExtractionOutcome
 - **Model selected:** GPT-6.1 Sol, Medium reasoning effort (reported available locally). **Codex CLI:** 0.164.0. Confirm effective runtime settings before each run.
 - **Coding skill:** Matt Pocock's `implement`, source repository [mattpocock/skills](https://github.com/mattpocock/skills), source commit `4ae2317ddb22b046e26455e4f9c9b3aaaf62212d`. Local skill content was inspected; the user's reported SHA-256 is `483BDC4CCF4AC31D86AC7BEEAA0D0DB80313E71E120BB8C59B3196AE5DECD53D`. `implement` calls `tdd` and `code-review`: install both from the same source commit, identically in both runs, and record their SHA-256 values too.
 - **Glossary:** Existing approved `GLOSSARY.md`, identical in both runs. Do not run additional design or domain-modeling workflows that would change shared inputs.
-- **Decorator:** [Clear Takeoff v0.1 rules](https://github.com/OlenaBack/clear-takeoff/blob/clear-takeoff/rules-v0.1/rules/clear-takeoff-v0.1.md), branch `clear-takeoff/rules-v0.1`, frozen tag `rules-v0.1` **pending creation/verification**. Create the tag on the final commit of `clear-takeoff/rules-v0.1`, after its remaining documentation fixes, and record the full SHA here. The rules file is unchanged since `417169d`; later commits change only `MVP.md` and `PLAN.md`.
+- **Decorator:** [Clear Takeoff v0.1 rules](https://github.com/OlenaBack/clear-takeoff/blob/clear-takeoff/rules-v0.1/rules/clear-takeoff-v0.1.md), branch `clear-takeoff/rules-v0.1`, frozen tag `rules-v0.1` **pending creation/verification**. Create the annotated tag on `15edec369d701ba125e5c31d36389a63713947ee`, the final commit of `clear-takeoff/rules-v0.1`, and record its verification here. The rules file is unchanged since `417169d`; later commits change only `MVP.md` and `PLAN.md`.
 - **Shared project instructions:** Neutral `AGENTS.md` on this preparation branch. The baseline uses only the shared instructions. The decorated run appends the full, unchanged text of `rules/clear-takeoff-v0.1.md` at the `rules-v0.1` tag to `AGENTS.md`; record the SHA-256 of the resulting `AGENTS.md`.
 
 ## Validation and evaluation
@@ -35,13 +35,22 @@ Preserve `AccidentExtractor.extract(narrative: str) -> AccidentExtractionOutcome
 - Use the same task, approved public contract and design, starting source snapshot, Codex model/settings, installed skill revision, and glossary in both runs. Only the decorated run receives Clear Takeoff rules.
 - Do not change either implementation based on evaluation findings before recording the comparison.
 
-**Run shared tests:** Install development dependencies with `python -m pip install -r requirements-dev.txt`, then run `python -m pytest tests/test_clear_takeoff_acceptance.py`.
+**Run shared tests:** Install development dependencies with `python -m pip install -r requirements-dev.txt`, then run `python -m pytest tests/test_clear_takeoff_acceptance.py` (in the snapshot: `tests/test_accident_extraction_contract.py`).
+
+## Snapshot requirements
+
+Build the history-free snapshot from this branch **by exclusion**. Do not delete these files from the preparation branch; the experiment documentation stays available here.
+
+1. **Exclude `docs/clear-takeoff/` entirely.** The trial specification and the blind judge prompt stay outside both agents' working directories.
+2. **Rename the acceptance test** to `tests/test_accident_extraction_contract.py`. Keep its content and assertions unchanged.
+3. **Provide one identical request file** to both runs, specifying the public contract, permitted changes, and expected behavior. It must not mention Clear Takeoff, its rules, or the evaluation criteria.
+4. **Exclude `.git` history** and any other files containing the previous implementation or experiment instructions.
 
 ## Remaining preparation
 
 1. Verify the effective model/settings, the installed skill revisions, and the `rules-v0.1` tag at the final rules-branch commit; run the shared acceptance tests.
 2. Freeze the written task/design inputs, the blind judge prompt, and the exact common starting commit.
-3. Prepare a clean snapshot for reimplementation **only on a `clear-takeoff/*` branch**. Remove existing targeted implementation and neutralize solution-revealing README diagrams, REPORT/CHANGELOG details; prevent access to original implementation through git history (for example, use an exported history-free snapshot). Preserve identical non-solution context in both runs.
+3. Prepare a clean, history-free snapshot for reimplementation **only on a `clear-takeoff/*` branch**, following the snapshot requirements above. Remove the existing targeted implementation and neutralize solution-revealing README diagrams and REPORT/CHANGELOG details. Preserve identical non-solution context in both runs.
 4. Create `clear-takeoff/baseline` and `clear-takeoff/decorated` from the same prepared commit. Verify their shared inputs and the decorator difference before invoking Codex.
 5. Run both trials, capture code before review fixes, and record the blind evaluation.
 
