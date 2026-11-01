@@ -121,29 +121,29 @@ This choice would change if:
 
 One row per extraction run, computed by `evaluate.py` from the files in `extractions/batch-01/` (the run ID is the start of each file's run ID).
 
-| # | Model | Prompt | Sampling | Run ID | Accuracy | Valid 1st | Valid after repair | p50 | p95 | Cost / 1,000 | unknown_usage_calls | documents_with_unknown_usage |
+| # | Model ID | Prompt | Sampling | Run ID | Accuracy | Valid 1st | Valid after repair | p50 | p95 | Cost / 1,000 | Unknown usage attempts | Accidents with unknown usage |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
-| 1 | gpt-4o-mini | v1 | deterministic | `347025ea` | 90.5% (162/179) | 100% | 100% | 2.05 s | 3.46 s | $0.425 | 0 | 0 |
-| 2 | gpt-4o-mini | v1 | deterministic | `dbfcf349` | 91.1% (163/179) | 100% | 100% | 2.00 s | 2.85 s | $0.424 | 0 | 0 |
-| 3 | gpt-4o-mini | v1 | deterministic | `5ed2b9e8` | 89.4% (160/179) | 100% | 100% | 2.04 s | 2.75 s | $0.425 | 0 | 0 |
-| 4 | gpt-4o-mini | v1 | varied | `18f7bbcb` | 90.5% (162/179) | 100% | 100% | 1.96 s | 2.87 s | $0.424 | 0 | 0 |
-| 5 | gpt-4o-mini | v1 | varied | `254fe6d2` | 90.5% (162/179) | 100% | 100% | 2.04 s | 2.96 s | $0.423 | 0 | 0 |
-| 6 | gpt-4o-mini | v1 | varied | `940bf317` | 89.9% (161/179) | 100% | 100% | 1.92 s | 2.59 s | $0.423 | 0 | 0 |
-| 7 | gpt-4o-mini | v2 | deterministic | `bb909ffe` | 93.9% (168/179) | 100% | 100% | 2.23 s | 3.26 s | $0.436 | 0 | 0 |
-| 8 | gpt-4o-mini | v2 | deterministic | `52808317` | 93.9% (168/179) | 100% | 100% | 2.05 s | 3.61 s | $0.436 | 0 | 0 |
-| 9 | gpt-4o-mini | v2 | deterministic | `92b0866a` | 93.3% (167/179) | 100% | 100% | 1.88 s | 3.17 s | $0.436 | 0 | 0 |
-| 10 | gpt-4o-mini | v2 | varied | `c8baafad` | 92.2% (165/179) | 100% | 100% | 2.20 s | 3.13 s | $0.436 | 0 | 0 |
-| 11 | gpt-4o-mini | v2 | varied | `e8c8b5c1` | 93.3% (167/179) | 100% | 100% | 2.02 s | 2.84 s | $0.435 | 0 | 0 |
-| 12 | gpt-4o-mini | v2 | varied | `f0524db6` | 93.3% (166/178) | 100% | 100% | 2.13 s | 2.73 s | $0.436 | 0 | 0 |
-| 13 | llama3.2:3b | v1 | deterministic | `da274886` | 65.2% (122/187) | 80% | 100% | 3.07 s | 6.40 s | $0.000 | 0 | 0 |
-| 14 | llama3.2:3b | v1 | deterministic | `cc21ed73` | 65.2% (122/187) | 80% | 100% | 2.38 s | 5.33 s | $0.000 | 0 | 0 |
-| 15 | llama3.2:3b | v1 | deterministic | `98673d26` | 65.6% (122/186) | 80% | 100% | 2.34 s | 5.18 s | $0.000 | 0 | 0 |
-| 16 | llama3.2:3b | v1 | varied | `d43b8d0d` | 63.7% (116/182) | 73% | 93% | 2.74 s | 6.07 s | $0.000 | 0 | 0 |
-| 17 | llama3.2:3b | v1 | varied | `34360055` | 69.2% (126/182) | 87% | 97% | 2.41 s | 4.95 s | $0.000 | 0 | 0 |
-| 18 | llama3.2:3b | v1 | varied | `8e579055` | 65.4% (121/185) | 73% | 100% | 2.61 s | 5.34 s | $0.000 | 0 | 0 |
-| 19 | llama3.2:3b | v2 | deterministic | `6df91e92` | 68.5% (124/181) | 80% | 100% | 2.85 s | 6.08 s | $0.000 | 0 | 0 |
-| 20 | llama3.2:3b | v2 | deterministic | `9725a743` | 68.5% (124/181) | 80% | 100% | 2.63 s | 5.26 s | $0.000 | 0 | 0 |
-| 21 | llama3.2:3b | v2 | deterministic | `6522d17f` | 66.9% (121/181) | 80% | 100% | 2.51 s | 5.17 s | $0.000 | 0 | 0 |
-| 22 | llama3.2:3b | v2 | varied | `f1034ea2` | 66.1% (123/186) | 77% | 100% | 2.85 s | 6.13 s | $0.000 | 0 | 0 |
-| 23 | llama3.2:3b | v2 | varied | `dc61f45d` | 63.0% (119/189) | 87% | 100% | 2.48 s | 5.00 s | $0.000 | 0 | 0 |
-| 24 | llama3.2:3b | v2 | varied | `19faea17` | 66.7% (122/183) | 83% | 100% | 2.51 s | 4.97 s | $0.000 | 0 | 0 |
+| 1 | llama3.2:3b | v1 | deterministic | `da274886` | 65.2% (122/187) | 80% | 100% | 3.07 s | 6.40 s | $0.000 | 0 | 0 |
+| 2 | llama3.2:3b | v1 | deterministic | `cc21ed73` | 65.2% (122/187) | 80% | 100% | 2.38 s | 5.33 s | $0.000 | 0 | 0 |
+| 3 | llama3.2:3b | v1 | deterministic | `98673d26` | 65.6% (122/186) | 80% | 100% | 2.34 s | 5.18 s | $0.000 | 0 | 0 |
+| 4 | llama3.2:3b | v1 | varied | `d43b8d0d` | 63.7% (116/182) | 73% | 93% | 2.74 s | 6.07 s | $0.000 | 0 | 0 |
+| 5 | llama3.2:3b | v1 | varied | `34360055` | 69.2% (126/182) | 87% | 97% | 2.41 s | 4.95 s | $0.000 | 0 | 0 |
+| 6 | llama3.2:3b | v1 | varied | `8e579055` | 65.4% (121/185) | 73% | 100% | 2.61 s | 5.34 s | $0.000 | 0 | 0 |
+| 7 | llama3.2:3b | v2 | deterministic | `6df91e92` | 68.5% (124/181) | 80% | 100% | 2.85 s | 6.08 s | $0.000 | 0 | 0 |
+| 8 | llama3.2:3b | v2 | deterministic | `9725a743` | 68.5% (124/181) | 80% | 100% | 2.63 s | 5.26 s | $0.000 | 0 | 0 |
+| 9 | llama3.2:3b | v2 | deterministic | `6522d17f` | 66.9% (121/181) | 80% | 100% | 2.51 s | 5.17 s | $0.000 | 0 | 0 |
+| 10 | llama3.2:3b | v2 | varied | `f1034ea2` | 66.1% (123/186) | 77% | 100% | 2.85 s | 6.13 s | $0.000 | 0 | 0 |
+| 11 | llama3.2:3b | v2 | varied | `dc61f45d` | 63.0% (119/189) | 87% | 100% | 2.48 s | 5.00 s | $0.000 | 0 | 0 |
+| 12 | llama3.2:3b | v2 | varied | `19faea17` | 66.7% (122/183) | 83% | 100% | 2.51 s | 4.97 s | $0.000 | 0 | 0 |
+| 13 | openai/gpt-4o-mini | v1 | deterministic | `347025ea` | 90.5% (162/179) | 100% | 100% | 2.05 s | 3.46 s | $0.425 | 0 | 0 |
+| 14 | openai/gpt-4o-mini | v1 | deterministic | `dbfcf349` | 91.1% (163/179) | 100% | 100% | 2.00 s | 2.85 s | $0.424 | 0 | 0 |
+| 15 | openai/gpt-4o-mini | v1 | deterministic | `5ed2b9e8` | 89.4% (160/179) | 100% | 100% | 2.04 s | 2.75 s | $0.425 | 0 | 0 |
+| 16 | openai/gpt-4o-mini | v1 | varied | `18f7bbcb` | 90.5% (162/179) | 100% | 100% | 1.96 s | 2.87 s | $0.424 | 0 | 0 |
+| 17 | openai/gpt-4o-mini | v1 | varied | `254fe6d2` | 90.5% (162/179) | 100% | 100% | 2.04 s | 2.96 s | $0.423 | 0 | 0 |
+| 18 | openai/gpt-4o-mini | v1 | varied | `940bf317` | 89.9% (161/179) | 100% | 100% | 1.92 s | 2.59 s | $0.423 | 0 | 0 |
+| 19 | openai/gpt-4o-mini | v2 | deterministic | `bb909ffe` | 93.9% (168/179) | 100% | 100% | 2.23 s | 3.26 s | $0.436 | 0 | 0 |
+| 20 | openai/gpt-4o-mini | v2 | deterministic | `52808317` | 93.9% (168/179) | 100% | 100% | 2.05 s | 3.61 s | $0.436 | 0 | 0 |
+| 21 | openai/gpt-4o-mini | v2 | deterministic | `92b0866a` | 93.3% (167/179) | 100% | 100% | 1.88 s | 3.17 s | $0.436 | 0 | 0 |
+| 22 | openai/gpt-4o-mini | v2 | varied | `c8baafad` | 92.2% (165/179) | 100% | 100% | 2.20 s | 3.13 s | $0.436 | 0 | 0 |
+| 23 | openai/gpt-4o-mini | v2 | varied | `e8c8b5c1` | 93.3% (167/179) | 100% | 100% | 2.02 s | 2.84 s | $0.435 | 0 | 0 |
+| 24 | openai/gpt-4o-mini | v2 | varied | `f0524db6` | 93.3% (166/178) | 100% | 100% | 2.13 s | 2.73 s | $0.436 | 0 | 0 |

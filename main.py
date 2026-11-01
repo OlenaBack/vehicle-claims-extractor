@@ -16,9 +16,9 @@ from vehicle_accidents_extractor.batch.extraction_setups import (
     extraction_setups,
 )
 from vehicle_accidents_extractor.evaluation.extraction_run_comparison import (
-    format_extraction_run_comparison,
+    compare_extraction_runs,
+    format_terminal_extraction_run_comparison,
 )
-from vehicle_accidents_extractor.evaluation.golden_record_reader import read_golden_records
 from vehicle_accidents_extractor.extraction.prompt_loader import available_prompt_versions
 from vehicle_accidents_extractor.input_paths import InputPaths
 from vehicle_accidents_extractor.llm.llm_config import LLMProfile
@@ -102,8 +102,8 @@ def run(args: argparse.Namespace) -> None:
             saved_paths += unavailable.saved_paths
 
     if args.all and saved_paths:
-        golden_records = read_golden_records(input_paths.golden_labels_path(args.batch))
-        print("\n" + format_extraction_run_comparison(saved_paths, golden_records))
+        rows = compare_extraction_runs(saved_paths, input_paths)
+        print("\n" + format_terminal_extraction_run_comparison(rows))
 
 
 def main() -> None:

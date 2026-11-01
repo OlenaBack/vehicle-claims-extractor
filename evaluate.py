@@ -1,13 +1,17 @@
-"""Evaluate a saved accident extraction run."""
+"""Evaluate one saved extraction run or compare several runs from one batch."""
 
 import argparse
 from pathlib import Path
 
-from vehicle_accidents_extractor.evaluation.run_metrics import (
-    calculate_run_metrics,
-)
 from vehicle_accidents_extractor.evaluation.accident_extraction_record_reader import (
     read_accident_extraction_records,
+)
+from vehicle_accidents_extractor.evaluation.extraction_run_comparison import (
+    compare_extraction_runs,
+    evaluate_extraction_run,
+    format_cost_per_1000_accidents,
+    format_markdown_extraction_run_comparison,
+    format_terminal_extraction_run_comparison,
 )
 from vehicle_accidents_extractor.evaluation.golden_record_reader import read_golden_records
 from vehicle_accidents_extractor.input_paths import InputPaths
@@ -18,17 +22,30 @@ ROOT = Path(__file__).resolve().parent
 
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument(
+    run_mode = parser.add_mutually_exclusive_group(required=True)
+    run_mode.add_argument(
         "--extraction-run",
         dest="extraction_run_path",
         type=Path,
-        required=True,
         help="Path to a saved extraction run JSONL file.",
+    )
+    run_mode.add_argument(
+        "--compare",
+        dest="extraction_run_paths",
+        nargs="+",
+        type=Path,
+        help="Paths to saved extraction run JSONL files from one batch.",
     )
     parser.add_argument(
         "--golden",
         dest="golden_labels_path",
         type=Path,
+        help="Golden labels file for --extraction-run.",
+    )
+    parser.add_argument(
+        "--markdown",
+        action="store_true",
+        help="Render --compare as a Markdown table.",
     )
     return parser.parse_args()
 
@@ -37,15 +54,29 @@ def main() -> None:
     args = parse_args()
 
     try:
+        input_paths = InputPaths(ROOT)
+        if args.extraction_run_paths is not None:
+            if args.golden_labels_path is not None:
+                raise ValueError("--golden can only be used with --extraction-run")
+            rows = compare_extraction_runs(args.extraction_run_paths, input_paths)
+            comparison = (
+                format_markdown_extraction_run_comparison(rows)
+                if args.markdown
+                else format_terminal_extraction_run_comparison(rows)
+            )
+            print(comparison)
+            return
+        if args.markdown:
+            raise ValueError("--markdown can only be used with --compare")
+
         extraction_records = read_accident_extraction_records(args.extraction_run_path)
         if not extraction_records:
             raise ValueError("Cannot evaluate an extraction run with no accident records")
         accident_batch = extraction_records[0].run_metadata.batch
-        golden_labels_path = args.golden_labels_path or InputPaths(ROOT).golden_labels_path(
-            accident_batch
-        )
+        golden_labels_path = args.golden_labels_path or input_paths.golden_labels_path(accident_batch)
         golden_records = read_golden_records(golden_labels_path)
-        metrics = calculate_run_metrics(extraction_records, golden_records)
+        comparison_row = evaluate_extraction_run(extraction_records, golden_records)
+        metrics = comparison_row.metrics
     except (OSError, ValueError) as error:
         raise SystemExit(str(error)) from error
 
@@ -60,7 +91,10 @@ def main() -> None:
     print(f"Validity after repair: {metrics.final_validity:.1%}")
     print(f"Latency p50: {metrics.latency_p50_seconds:.3f}s")
     print(f"Latency p95: {metrics.latency_p95_seconds:.3f}s")
-    print(f"Estimated cost/1,000 accidents: ${metrics.cost_per_1000_accidents:.4f}")
+    print(
+        "Estimated cost/1,000 accidents: "
+        f"{format_cost_per_1000_accidents(metrics.cost_per_1000_accidents)}"
+    )
     print(f"Attempts with unknown token usage: {metrics.unknown_usage_attempts}")
     print(
         "Accidents with unknown token usage: "

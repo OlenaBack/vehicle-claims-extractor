@@ -45,6 +45,8 @@ Evaluate one saved run against the golden labels:
 python evaluate.py --extraction-run extractions\batch-01\<run file>.jsonl
 ```
 
+To compare selected saved runs, pass their JSONL paths with `--compare`; add `--markdown` for a report-ready table.
+
 Settings (LLM profiles, prices, timeout, retries and sampling profiles) are in [`llm_config.toml`](vehicle_accidents_extractor/llm/llm_config.toml). Prompt versions and their changelog are in [`prompts/`](prompts/).
 
 ## Files and outputs
