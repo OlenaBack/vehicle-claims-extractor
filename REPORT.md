@@ -119,7 +119,7 @@ This choice would change if:
 
 ## Appendix: all 24 runs
 
-One row per extraction run, computed by `evaluate.py` from the files in `extractions/batch-01/` (the run ID is the start of each file's run ID).
+Generated with `python evaluate.py --compare extractions/batch-01/*.jsonl --markdown`. The run ID shows the first eight characters of each saved run's ID.
 
 | # | Model ID | Prompt | Sampling | Run ID | Accuracy | Valid 1st | Valid after repair | p50 | p95 | Cost / 1,000 | Unknown usage attempts | Accidents with unknown usage |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |

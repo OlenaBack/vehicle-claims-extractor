@@ -48,6 +48,17 @@ def compare_extraction_runs(
             )
         record_sets.append(extraction_records)
 
+    seen_run_ids = set()
+    duplicate_run_ids = set()
+    for records in record_sets:
+        run_id = records[0].run_metadata.run_id
+        if run_id in seen_run_ids:
+            duplicate_run_ids.add(run_id)
+        seen_run_ids.add(run_id)
+    if duplicate_run_ids:
+        run_ids = ", ".join(sorted(duplicate_run_ids))
+        raise ValueError(f"Cannot compare duplicate extraction run IDs: {run_ids}")
+
     batches = {records[0].run_metadata.batch for records in record_sets}
     if len(batches) != 1:
         batch_names = ", ".join(sorted(batches))

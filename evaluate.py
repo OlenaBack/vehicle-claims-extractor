@@ -1,6 +1,7 @@
 """Evaluate one saved extraction run or compare several runs from one batch."""
 
 import argparse
+import glob
 from pathlib import Path
 
 from vehicle_accidents_extractor.evaluation.accident_extraction_record_reader import (
@@ -58,7 +59,8 @@ def main() -> None:
         if args.extraction_run_paths is not None:
             if args.golden_labels_path is not None:
                 raise ValueError("--golden can only be used with --extraction-run")
-            rows = compare_extraction_runs(args.extraction_run_paths, input_paths)
+            extraction_run_paths = expand_extraction_run_paths(args.extraction_run_paths)
+            rows = compare_extraction_runs(extraction_run_paths, input_paths)
             comparison = (
                 format_markdown_extraction_run_comparison(rows)
                 if args.markdown
@@ -106,6 +108,20 @@ def main() -> None:
     print("\nField scores:")
     for field, (correct, total) in metrics.by_field.items():
         print(f"  {field}: {correct}/{total} ({correct / total:.1%})")
+
+
+def expand_extraction_run_paths(paths: list[Path]) -> list[Path]:
+    """Expand wildcard arguments while preserving explicit paths and input order."""
+    expanded_paths = []
+    for path in paths:
+        if glob.has_magic(str(path)):
+            matches = sorted(Path(match) for match in glob.glob(str(path), recursive=True))
+            if not matches:
+                raise ValueError(f"No extraction runs match {path}")
+            expanded_paths.extend(matches)
+        else:
+            expanded_paths.append(path)
+    return expanded_paths
 
 
 if __name__ == "__main__":
