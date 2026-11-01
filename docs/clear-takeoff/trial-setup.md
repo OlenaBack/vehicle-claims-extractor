@@ -3,7 +3,7 @@
 **Status:** In preparation (2026-11-01)
 **Repository:** `OlenaBack/vehicle-claims-extractor`
 **Preparation branch:** `clear-takeoff/trial-preparation`
-**Reference:** Clear Takeoff `MVP.md`; approved trial decisions take precedence where the original MVP has not yet been updated.
+**Reference:** Approved Clear Takeoff `MVP.md` and `PLAN.md`.
 
 ## Trial task
 
@@ -28,11 +28,13 @@ Preserve `AccidentExtractor.extract(narrative: str) -> AccidentExtractionOutcome
 
 ## Validation and evaluation
 
-- **Shared prewritten acceptance tests:** `tests/test_clear_takeoff_acceptance.py`, testing via `AccidentBatchExtractorBuilder.with_llm_client(fake)` and saved JSONL records. Use these unchanged in both runs, alongside the skill's normal tests and review. Tests were written on the preparation branch; execution is not yet verified.
+- **Shared prewritten acceptance tests:** `tests/test_clear_takeoff_acceptance.py`, testing via `AccidentBatchExtractorBuilder.with_llm_client(fake)` and saved JSONL records. Use these unchanged in both runs, alongside the skill's normal tests and review. Tests were written on the preparation branch; six cases were reported passing against the existing implementation. Re-run after changes.
 - Capture the **initial generated code before review-driven corrections** in each run.
 - Compare the two implementations with a **blind LLM evaluation**, assessing each independently before comparing. Score semantic consistency, self-explanatory code, cohesive responsibilities, and readable execution flow (1–5 each), with concrete code evidence. Record trade-offs and a justified comparison; scores are subjective, not proof of superiority.
 - Use the same task, approved public contract and design, starting source snapshot, Codex model/settings, installed skill revision, and glossary in both runs. Only the decorated run receives Clear Takeoff rules.
 - Do not change either implementation based on evaluation findings before recording the comparison.
+
+**Run shared tests:** Install development dependencies with `python -m pip install -r requirements-dev.txt`, then run `python -m pytest tests/test_clear_takeoff_acceptance.py`.
 
 ## Remaining preparation
 
