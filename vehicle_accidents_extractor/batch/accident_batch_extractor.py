@@ -1,12 +1,9 @@
 """Build and extract all accident narratives in one batch."""
 
-from __future__ import annotations
-
 from datetime import datetime, timezone
 import os
 import platform
 from pathlib import Path
-from typing import TYPE_CHECKING
 from uuid import uuid4
 
 from ..artifact_paths import ArtifactPaths
@@ -17,11 +14,9 @@ from ..extraction.response_validator import ResponseValidator
 from ..extraction_run_records import ExtractionRunMetadata
 from ..input_paths import InputPaths
 from ..llm.config import Config
+from ..llm.llm_client import LLMClient
 from ..schema import VehicleAccident
 from .accident_extraction_record_writer import AccidentExtractionRecordWriter
-
-if TYPE_CHECKING:
-    from .model_session import ModelSession
 
 
 class AccidentBatchExtractor:
@@ -56,7 +51,8 @@ class AccidentBatchExtractorBuilder:
         self._input_paths = input_paths
         self._artifact_paths: ArtifactPaths | None = None
         self._accident_batch: str | None = None
-        self._model_session: ModelSession | None = None
+        self._model_profile: str | None = None
+        self._llm_client: LLMClient | None = None
         self._prompt_version: str | None = None
         self._sampling_profile: str | None = None
 
@@ -64,8 +60,13 @@ class AccidentBatchExtractorBuilder:
         self._accident_batch = accident_batch
         return self
 
-    def with_model_session(self, model_session: ModelSession) -> "AccidentBatchExtractorBuilder":
-        self._model_session = model_session
+    def with_model_profile(self, model_profile: str) -> "AccidentBatchExtractorBuilder":
+        self._model_profile = model_profile
+        return self
+
+    def with_llm_client(self, llm_client: LLMClient) -> "AccidentBatchExtractorBuilder":
+        """Use a client the caller created for the model profile and will close."""
+        self._llm_client = llm_client
         return self
 
     def with_prompt_version(self, prompt_version: str) -> "AccidentBatchExtractorBuilder":
@@ -82,16 +83,15 @@ class AccidentBatchExtractorBuilder:
 
     def build(self) -> AccidentBatchExtractor:
         accident_batch = self._required(self._accident_batch, "accident batch")
+        model_profile = self._required(self._model_profile, "model profile")
         prompt_version = self._required(self._prompt_version, "prompt version")
         sampling_profile = self._required(self._sampling_profile, "sampling profile")
         if self._artifact_paths is None:
             raise ValueError("Artifact paths are required to build an accident batch extractor")
-        if self._model_session is None:
-            raise ValueError("A model session is required to build an accident batch extractor")
+        if self._llm_client is None:
+            raise ValueError("An LLM client is required to build an accident batch extractor")
 
-        model_profile = self._model_session.model_profile
-        model_config = self._model_session.model_config
-        llm_client = self._model_session.llm_client
+        model_config = self._config.get_model(model_profile)
         sampling = self._config.get_sampling(sampling_profile)
         prompts = load_extraction_prompts(self._input_paths.prompts_directory, prompt_version)
         narrative_paths = self._input_paths.accident_narrative_paths(accident_batch)
@@ -119,7 +119,7 @@ class AccidentBatchExtractorBuilder:
         )
         extraction_run_records_path = self._artifact_paths.extraction_run_records_path(run_metadata)
         accident_extractor = AccidentExtractor(
-            llm_client,
+            self._llm_client,
             PromptBuilder(prompts.system_prompt, prompts.repair_prompt),
             ResponseValidator(VehicleAccident),
             sampling,

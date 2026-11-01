@@ -73,7 +73,6 @@ class LLMClient:
     ):
         if max_retries < 0:
             raise ValueError("max_retries must be >= 0")
-        self.base_url = base_url
         self.model = model
         self.max_retries = max_retries
         # max_retries=0 turns off the SDK's own hidden retries, so we can count and log each try ourselves.

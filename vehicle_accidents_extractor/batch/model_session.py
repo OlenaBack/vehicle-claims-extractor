@@ -1,36 +1,14 @@
 """Keep one model connected while it extracts several setups of an accident batch."""
 
 import os
-from dataclasses import dataclass
 from pathlib import Path
 
 from ..artifact_paths import ArtifactPaths
 from ..input_paths import InputPaths
-from ..llm.config import Config, ModelConfig
+from ..llm.config import Config
 from ..llm.llm_client import LLMClient
 from .accident_batch_extractor import AccidentBatchExtractorBuilder
 from .extraction_setups import ExtractionSetup
-
-
-@dataclass(frozen=True)
-class ModelSession:
-    """Pair one selected model profile with the client configured for it."""
-
-    model_profile: str
-    model_config: ModelConfig
-    llm_client: LLMClient
-
-    def __post_init__(self) -> None:
-        if self.llm_client.model != self.model_config.model:
-            raise ValueError(
-                f"LLM client model {self.llm_client.model!r} does not match "
-                f"model profile {self.model_profile!r} ({self.model_config.model!r})"
-            )
-        if self.llm_client.base_url != self.model_config.base_url:
-            raise ValueError(
-                f"LLM client base URL {self.llm_client.base_url!r} does not match "
-                f"model profile {self.model_profile!r} ({self.model_config.base_url!r})"
-            )
 
 
 def extract_setups_with_model(
@@ -60,7 +38,6 @@ def extract_setups_with_model(
         timeout_seconds=config.timeout_seconds,
         max_retries=config.max_retries,
     ) as llm_client:
-        model_session = ModelSession(model_profile, model_config, llm_client)
         if connection_error := llm_client.ping():
             print(f"Skipping {model_profile}: {connection_error}")
             return saved_paths
@@ -72,7 +49,8 @@ def extract_setups_with_model(
             batch_extractor = (
                 AccidentBatchExtractorBuilder(config, input_paths)
                 .for_accident_batch(accident_batch)
-                .with_model_session(model_session)
+                .with_model_profile(model_profile)
+                .with_llm_client(llm_client)
                 .with_prompt_version(setup.prompt_version)
                 .with_sampling_profile(setup.sampling_profile)
                 .saving_records_to(artifact_paths)
