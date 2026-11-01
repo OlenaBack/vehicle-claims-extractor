@@ -57,4 +57,4 @@ The input data source and adaptations are documented in [data/README.md](data/RE
 
 ## How it works
 
-See [docs/how-it-works.md](docs/how-it-works.md) for the extraction flow, saved data types and module responsibilities.
+See [docs/how-it-works.md](docs/how-it-works.md) for the extraction flow and the design decisions.
