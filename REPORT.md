@@ -4,7 +4,7 @@ Extracts structured data from 30 accident narratives (English, Swedish or mixed)
 
 - Provider model: `openai/gpt-4o-mini` through OpenRouter.
 - Local model: `llama3.2:3b` through Ollama.
-- Every run used the final code, including the local model warm-up. Each of the 8 setups was run 3 times (24 runs). Tables show the mean with the range (min–max) over the 3 runs.
+- Every run used the final extraction behavior: prompts, schema, validation, retries and local warm-up. Later commits only renamed code and changed reporting. Each of the 8 setups was run 3 times (24 runs). Tables show the mean with the range (min–max) over the 3 runs.
 
 ## Results
 
@@ -18,6 +18,8 @@ Extracts structured data from 30 accident narratives (English, Swedish or mixed)
 | llama3.2:3b | v1 | varied | 66.1% (63.7–69.2) | 78% (73–87) | 97% (93–100) | 2.58 s (2.41–2.74) | 5.45 s (4.95–6.07) | $0 |
 | llama3.2:3b | v2 | deterministic | 68.0% (66.9–68.5) | 80% | 100% | 2.66 s (2.51–2.85) | 5.50 s (5.17–6.08) | $0 |
 | llama3.2:3b | v2 | varied | 65.3% (63.0–66.7) | 82% (77–87) | 100% | 2.61 s (2.48–2.85) | 5.37 s (4.97–6.13) | $0 |
+
+The Results table's `gpt-4o-mini` label refers to model ID `openai/gpt-4o-mini`.
 
 Validity over all responses: gpt-4o-mini produced 360 of 360 valid on the first attempt, so repair never ran. llama3.2:3b needed repair for 72 of 360 responses (20%): 69 became valid and 3 stayed invalid. The 3 `failed` responses are all in llama3.2:3b v1 varied (runs 1 and 2; accident `2005076197285` failed in both). Each had the same error: the repaired `weather` list contained a duplicate item. A `failed` response scores 0 on every field.
 
