@@ -103,6 +103,7 @@ def test_valid_first_reply(tmp_path):
     assert record["accident"]["accident_type"] == "rear_end"
     assert record["repair_attempted"] is False
     assert len(record["calls"]) == len(fake.calls) == 1
+    assert "rear-ended" in str(fake.calls[0]["messages"])
 
 
 def test_invalid_json_then_repair(tmp_path):
@@ -113,6 +114,10 @@ def test_invalid_json_then_repair(tmp_path):
     assert record["repair_attempted"] is True
     assert len(record["calls"]) == len(fake.calls) == 2
     assert len(record["validation_errors"]) == 1
+    assert "rear-ended" in str(fake.calls[0]["messages"])
+    assert "{broken" in str(fake.calls[1]["messages"]) or any(
+        error in str(fake.calls[1]["messages"]) for error in record["validation_errors"]
+    )
 
 
 def test_invalid_twice_fails(tmp_path):
